@@ -1,6 +1,5 @@
 #include <GL/glut.h>
 #include <GL/gl.h>
-#include <GL/glut.h>
 #include <stdio.h>
 #include <iostream>
 #include <string>
@@ -10,19 +9,28 @@
 using namespace std;
 using namespace tinyxml2;
 
+int ErroEstrutura(){
+    cout<<"XML Vazio ou Estrutura de XML errada."<<endl;
+    return 1;
+}
+
+
 int main(int argc, char const *argv[])
 {
-    cout << argv[1]<<endl;
     XMLDocument doc;
-    doc.LoadFile(argv[1]);
-    cout<<doc.ErrorStr();
-    doc.Print();
-    XMLNode *pRoot =doc.FirstChild();
-    if(pRoot==NULL){
-        cout<<"XML Vazio ou Raiz de XML não encontrado."<<endl;
-    }else {
-        cout<< pRoot->FirstChildElement("circulo")->Attribute("raio") <<endl;
+    XMLHandle root(&doc);
+    XMLElement* temp;
+    int xy[2];
+    double rgb[3];
+    cout << argv[1]<<endl;
+    if(doc.LoadFile(argv[1])!= XML_SUCCESS){
+        cout<<doc.ErrorStr();
+        return 1;
     }
-    
+    temp= root.FirstChildElement("aplicacao").FirstChildElement("janela").FirstChildElement("dimensao").ToElement();
+    if (temp && temp->QueryAttribute("largura")==XML_SUCCESS && temp->QueryAttribute("altura")==XML_SUCCESS){
+    glutInitWindowSize( temp->Attribute("largura"), temp->Attribute("altura") );
+    }else return ErroEstrutura();
+
     return 0;
 }
