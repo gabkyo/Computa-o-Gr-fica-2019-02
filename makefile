@@ -1,6 +1,6 @@
 all:
-	g++ trabalho.cpp -lGL -lGL -lglut
-	./a.out Test_1/config.xml #APAGAR
+	g++ -o trabalhocg trabalho.cpp -lfreeglut  -lGL -LGL 
+	./trabalhocg Test_1/config.xml #APAGAR
 
 
 clean:
