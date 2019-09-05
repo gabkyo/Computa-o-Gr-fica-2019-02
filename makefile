@@ -1,7 +1,5 @@
 all:
-	g++ -o trabalhocg trabalho.cpp -lfreeglut  -lGL -LGL 
-	./trabalhocg Test_1/ #APAGAR
-
-
+	g++ -g -std=c++11 -o trabalhocg trabalho.cpp -lGL -lGLU -lglut
+	gdb --args trabalhocg /Test_1/ 
 clean:
-	rm -rf a.out
+	rm -rf trabalhocg
