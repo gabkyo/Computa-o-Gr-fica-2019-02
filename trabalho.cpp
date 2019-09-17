@@ -19,17 +19,18 @@ using namespace tinyxml2;
 double pi=3.14;
 int segmentos=12;
 
+struct Janela{
+    string titulo;
+    int dimensao[2];
+
+}janela;
+
 struct Circulo
 {
-    double raio, rgb_circulo[3], rgb_modelo[3], sobreposicao[3];
+    double raio;
+    string color;
+    int cx,cy;
 } circulo;
-
-struct Janela
-{
-    int dimensao[2];
-    double fundo_rgb[3];
-    string titulo;
-} janela;
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
@@ -49,6 +50,7 @@ void ErroIO()
 bool teste(char *arquivo)
 { // XML_SUCESS=0=false
     FILE *i = fopen(arquivo, "r");
+    string arena;
     if (i == NULL)
     {
         cout << "FILE";
@@ -64,8 +66,11 @@ bool teste(char *arquivo)
     }
     fclose(i);
     XMLHandle root(&doc); //pointer para navegar
-    temp = root.FirstChildElement("aplicacao").FirstChildElement("circulo").ToElement();
-    
+    temp = root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("nome").ToElement();
+    if(temp==NULL){
+        ErroEstrutura();
+        return false;
+    }
     return true;
 }
 
@@ -123,7 +128,7 @@ int main(int argc, char *argv[])
 {
     string temp = string(argv[1]);
     temp.append("config.xml");
-    if (temp[0] == '/')
+    if (temp[0] == '/' || temp[0] == '~' )
     {
         temp = '.' + temp;
     }

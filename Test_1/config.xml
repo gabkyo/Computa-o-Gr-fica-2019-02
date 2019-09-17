@@ -2,7 +2,7 @@
 	<arquivoDaArena>
 		<nome>arena</nome>
 		<tipo>svg</tipo>
-		<caminho>coloque o seu caminho aqui para testar</caminho>
+		<caminho>/Test_1/</caminho>
 	</arquivoDaArena>
 	<jogador vel="0.1"></jogador>
 </aplicacao>
