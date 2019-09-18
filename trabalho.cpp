@@ -60,17 +60,50 @@ bool teste(char *arquivo)
     if (doc.LoadFile(i) != XML_SUCCESS)
     {
         cout << "doc";
-        ErroIO();
+        ErroEstrutura();
         cout << doc.ErrorStr() << endl;
         return false;
     }
     fclose(i);
     XMLHandle root(&doc); //pointer para navegar
-    temp = root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("nome").ToElement();
+    temp = root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("caminho").ToElement();
     if(temp==NULL){
         ErroEstrutura();
         return false;
     }
+    arena=temp->GetText();
+    if(arena[0]=='/'){
+        arena='.'+arena;
+    }
+    temp=root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("nome").ToElement();
+     if(temp==NULL){
+        ErroEstrutura();
+        return false;
+    }
+    arena+=temp->GetText()+'.';
+    temp=root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("tipo").ToElement();
+     if(temp==NULL){
+        ErroEstrutura();
+        return false;
+    }
+    arena+=temp->GetText();
+    i=fopen(arena.c_str());
+    if (i == NULL)
+    {
+        cout << "FILE ARENA";
+        ErroIO();
+        return false;
+    }
+    if (doc.LoadFile(i) != XML_SUCCESS)
+    {
+        cout << "doc ARENA";
+        ErroEstrutura();
+        cout << doc.ErrorStr() << endl;
+        return false;
+    }
+    fclose(i);
+    root=XMLHandle(&doc);
+    temp=root.FirstChildElement("svg");
     return true;
 }
 
@@ -128,7 +161,7 @@ int main(int argc, char *argv[])
 {
     string temp = string(argv[1]);
     temp.append("config.xml");
-    if (temp[0] == '/' || temp[0] == '~' )
+    if (temp[0] == '/')
     {
         temp = '.' + temp;
     }
