@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <cstring>
-#include <list>
+#include <vector>
 #include <algorithm>
 #include <cmath>
 #include "tinyxml2.h"
@@ -19,18 +19,18 @@ using namespace tinyxml2;
 double pi=3.14;
 int segmentos=12;
 
-struct Janela{
-    string titulo;
-    int dimensao[2];
-
-}janela;
+struct Linha{
+    int x1,x2,y1,y2,id;
+}linha;
 
 struct Circulo
 {
     double raio;
     string color;
-    int cx,cy;
-} circulo;
+    int cx,cy ,id;
+} ;
+
+vector<Circulo> entidades;
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
@@ -67,6 +67,7 @@ bool teste(char *arquivo)
     fclose(i);
     XMLHandle root(&doc); //pointer para navegar
     temp = root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("caminho").ToElement();
+    Circulo circulo;
     if(temp==NULL){
         ErroEstrutura();
         return false;
@@ -87,7 +88,7 @@ bool teste(char *arquivo)
         return false;
     }
     arena+=temp->GetText();
-    i=fopen(arena.c_str());
+    i=fopen(arena.c_str(),"r");
     if (i == NULL)
     {
         cout << "FILE ARENA";
@@ -103,7 +104,15 @@ bool teste(char *arquivo)
     }
     fclose(i);
     root=XMLHandle(&doc);
-    temp=root.FirstChildElement("svg");
+    ;
+    for ( temp=root.FirstChildElement("svg").FirstChildElement("circle").ToElement() ; temp!=NULL; temp=temp->NextSiblingElement("circle")){
+        if (temp->QueryStringAttribute())
+        {
+            /* code */
+        }
+        
+    }
+    
     return true;
 }
 
@@ -142,9 +151,9 @@ void drawCircle(int x, int y)
     {
         for (double i = 0; i <= 2 * pi; i += step)
         {
-            ox = 2 * (double(x) + circulo.raio * cos(i)) / double(janela.dimensao[0]) - 1.0;
-            oy = 2 * (double(y) + circulo.raio * sin(i)) / double(janela.dimensao[1]) + 1.0;
-            glVertex2f(ox, oy);
+            //ox = 2 * (double(x) + circulo.raio * cos(i)) / double(janela.dimensao[0]) - 1.0;
+            //oy = 2 * (double(y) + circulo.raio * sin(i)) / double(janela.dimensao[1]) + 1.0;
+            //glVertex2f(ox, oy);
         }
     }
     glEnd();
@@ -161,9 +170,8 @@ int main(int argc, char *argv[])
 {
     string temp = string(argv[1]);
     temp.append("config.xml");
-    if (temp[0] == '/')
-    {
-        temp = '.' + temp;
+    if(temp.at(0)=='/'){
+        temp="."+temp;
     }
     char arquivo[temp.length() + 1];
     strcpy(arquivo, temp.c_str());
@@ -171,21 +179,22 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
-    glutInit(&argc, argv);
+    /*glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutInitWindowPosition(100, 100);
-    //glutInitWindowSize(janela.dimensao[0], janela.dimensao[1]);
-    //glutCreateWindow(janela.titulo.c_str());
-    //glClearColor(janela.fundo_rgb[0], janela.fundo_rgb[1], janela.fundo_rgb[2], 1.0);
+    glutInitWindowSize(janela.dimensao[0], janela.dimensao[1]);
+    glutCreateWindow(janela.titulo.c_str());
+    glClearColor(janela.fundo_rgb[0], janela.fundo_rgb[1], janela.fundo_rgb[2], 1.0);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    //glOrtho(0.0, janela.dimensao[0], 0, janela.dimensao[1], 0, 0);
+    glOrtho(0.0, janela.dimensao[0], 0, janela.dimensao[1], 0, 0);
     //fim do setup
     glutDisplayFunc(display);
     glutMouseFunc(click);
     glutMotionFunc(drag);
     glutPassiveMotionFunc(passivemove);
-    //fim das definicoes de estados
+    ;;fim das definicoes de estados
     glutMainLoop();
+    */
     return 0;
 }
