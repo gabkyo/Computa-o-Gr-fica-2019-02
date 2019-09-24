@@ -25,10 +25,13 @@ struct Linha{
 
 struct Circulo
 {
-    double raio;
     string color;
-    int cx,cy ,id;
-} ;
+    int cx,cy ,id,raio;
+
+    bool operator <(const Circulo& c) const{
+        return(id < c.id);
+    }
+}circulo_temp ;
 
 vector<Circulo> entidades;
 
@@ -104,13 +107,32 @@ bool teste(char *arquivo)
     }
     fclose(i);
     root=XMLHandle(&doc);
-    ;
-    for ( temp=root.FirstChildElement("svg").FirstChildElement("circle").ToElement() ; temp!=NULL; temp=temp->NextSiblingElement("circle")){
-        if (temp->QueryStringAttribute())
-        {
-            /* code */
+    char *c;
+    temp=root.FirstChildElement("svg").FirstChildElement("line").ToElement();
+    if(temp==NULL || temp->QueryIntAttribute("id",&linha.id)!=XML_SUCCESS
+     || temp->QueryIntAttribute("x1",&linha.x1)!=XML_SUCCESS
+      || temp->QueryIntAttribute("x2",&linha.x2)!=XML_SUCCESS
+       || temp->QueryIntAttribute("y1",&linha.y1)!=XML_SUCCESS
+        || temp->QueryIntAttribute("y2",&linha.y2)!=XML_SUCCESS){
+            ErroEstrutura();
+            return false;
         }
-        
+    for ( temp=root.FirstChildElement("svg").FirstChildElement("circle").ToElement() ; temp!=NULL; temp=temp->NextSiblingElement("circle")){
+        if (temp->QueryStringAttribute("fill",&c)==XML_SUCCESS){
+            circulo_temp.color=string(c);
+        }else ErroEstrutura();
+        if(temp->QueryIntAttribute("cx",&circulo_temp.cx)!=XML_SUCCESS
+            || temp->QueryIntAttribute("cy",&circulo_temp.cy)!=XML_SUCCESS
+                || temp->QueryIntAttribute("raio",&circulo_temp.raio)!=XML_SUCCESS
+                    || temp->QueryIntAttribute("id",&circulo_temp.id)!=XML_SUCCESS){
+            ErroEstrutura();
+            return false;
+        }
+        entidades.push_back(circulo_temp);        
+    }
+    if(entidades.size()<=0){
+        cout<<"Nenhum circulo encontrado no arquivo da arena."<<endl;
+        return false;
     }
     
     return true;
@@ -144,7 +166,7 @@ void drag(int x, int y)
     
 }
 
-void drawCircle(int x, int y)
+void drawCircle(Circulo circ)
 {
     double step = 2 * pi / segmentos, ox, oy;
     glBegin(GL_LINE_LOOP);
@@ -179,15 +201,27 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
-    /*glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    sort(entidades.begin(),entidades.end());
+    glutInit(&argc, argv);
     glutInitWindowPosition(100, 100);
-    glutInitWindowSize(janela.dimensao[0], janela.dimensao[1]);
-    glutCreateWindow(janela.titulo.c_str());
-    glClearColor(janela.fundo_rgb[0], janela.fundo_rgb[1], janela.fundo_rgb[2], 1.0);
+    glutInitWindowSize(50, 50);
+    int raio=300;
+    for(auto i:entidades){
+        if (i.color=="blue"){
+            raio=i.raio;
+        }
+        
+    }
+    glutInitWindowSize(raio, raio);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glClearColor(0, 0, 0, 1.0);
     glMatrixMode(GL_PROJECTION);
+    glOrtho(0.0, raio, 0, raio, 0, 1);
+    /*
+    glutCreateWindow(janela.titulo.c_str());
+    
     glLoadIdentity();
-    glOrtho(0.0, janela.dimensao[0], 0, janela.dimensao[1], 0, 0);
+    
     //fim do setup
     glutDisplayFunc(display);
     glutMouseFunc(click);
