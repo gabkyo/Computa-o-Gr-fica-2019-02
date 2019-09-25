@@ -31,9 +31,9 @@ struct Circulo
     bool operator <(const Circulo& c) const{
         return(id < c.id);
     }
-}circulo_temp ;
+}circulo_temp, jogador,arena ;
 
-vector<Circulo> entidades;
+vector<Circulo> inimigos;
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
@@ -128,7 +128,11 @@ bool teste(char *arquivo)
             ErroEstrutura();
             return false;
         }
-        entidades.push_back(circulo_temp);        
+        if(circulo_temp.color=="blue"){
+            arena=circulo_temp;
+        }else if(circulo_temp.color=="green"){
+            jogador=circulo_temp;
+        }else entidades.push_back(circulo_temp);      
     }
     if(entidades.size()<=0){
         cout<<"Nenhum circulo encontrado no arquivo da arena."<<endl;
@@ -166,16 +170,15 @@ void drag(int x, int y)
     
 }
 
-void drawCircle(Circulo circ)
-{
+void drawCircle(Circulo circ){
     double step = 2 * pi / segmentos, ox, oy;
-    glBegin(GL_LINE_LOOP);
-    {
-        for (double i = 0; i <= 2 * pi; i += step)
-        {
+    glBegin(GL_POLYGON);{
+        for (double i = 0; i <= 2 * pi; i += step){
+            ox=circ.raio*cos(i);
+            ox=circ.raio*sin(i);
             //ox = 2 * (double(x) + circulo.raio * cos(i)) / double(janela.dimensao[0]) - 1.0;
             //oy = 2 * (double(y) + circulo.raio * sin(i)) / double(janela.dimensao[1]) + 1.0;
-            //glVertex2f(ox, oy);
+            glVertex2f(circ.cx+ox, circ.cy+oy);
         }
     }
     glEnd();
