@@ -17,26 +17,32 @@ using namespace std;
 using namespace tinyxml2;
 
 double pi=3.14;
-int segmentos=12;
+int segmentos=30;
 
 struct Linha{
-    int x1,x2,y1,y2,id;
+    string color;
+    int x1,x2,y1,y2;
 }linha;
 
 struct Circulo
 {
     string color;
-    int cx,cy ,id,raio;
+    int cx,cy,raio;
 
-    bool operator <(const Circulo& c) const{
-        return(id < c.id);
-    }
 }circulo_temp, jogador,arena ;
 
-vector<Circulo> inimigos;
+vector<Circulo> terrestres;
+vector<Circulo> voadores;
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
+
+void init(){
+    glClearColor(1, 1, 1, 1);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(arena.cx-arena.raio, arena.cx+arena.raio,arena.cy+arena.raio, arena.cy-arena.raio, -1, 1);
+}
 
 void ErroEstrutura()
 {
@@ -50,10 +56,23 @@ void ErroIO()
     return;
 }
 
+void cor(string color){
+    if(color=="blue"){
+        glColor3d(0.0,0.0,1.0);
+    }else if(color=="orange"){
+        glColor3d(1.0,0.5,0.0);
+    }else if(color=="red"){
+        glColor3d(1.0,0.0,0.0);
+    }else if(color=="green"){
+        glColor3d(0.0,1.0,0.0);
+    }else glColor3d(0.0,0.0,0.0);
+}
+
 bool teste(char *arquivo)
 { // XML_SUCESS=0=false
     FILE *i = fopen(arquivo, "r");
-    string arena;
+    string svg;
+    const char *c;
     if (i == NULL)
     {
         cout << "FILE";
@@ -67,78 +86,90 @@ bool teste(char *arquivo)
         cout << doc.ErrorStr() << endl;
         return false;
     }
-    fclose(i);
     XMLHandle root(&doc); //pointer para navegar
     temp = root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("caminho").ToElement();
-    Circulo circulo;
     if(temp==NULL){
         ErroEstrutura();
         return false;
     }
-    arena=temp->GetText();
-    if(arena[0]=='/'){
-        arena='.'+arena;
+    svg=temp->GetText();
+    if(svg[0]=='/'){
+        svg='.'+svg;
+    }else if(svg[0]=='~'){
+        c=getenv("HOME");
+        svg=svg.substr(1);
+        svg=string(c)+svg;
     }
     temp=root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("nome").ToElement();
      if(temp==NULL){
         ErroEstrutura();
         return false;
     }
-    arena+=temp->GetText()+'.';
+    svg=svg+temp->GetText()+'.';
     temp=root.FirstChildElement("aplicacao").FirstChildElement("arquivoDaArena").FirstChildElement("tipo").ToElement();
      if(temp==NULL){
         ErroEstrutura();
         return false;
     }
-    arena+=temp->GetText();
-    i=fopen(arena.c_str(),"r");
-    if (i == NULL)
+    svg=svg+temp->GetText();
+    doc.Clear();
+    c=svg.c_str();
+    freopen(c,"r",i);
+    if (doc.LoadFile(svg.c_str()) != XML_SUCCESS)
     {
-        cout << "FILE ARENA";
-        ErroIO();
-        return false;
-    }
-    if (doc.LoadFile(i) != XML_SUCCESS)
-    {
-        cout << "doc ARENA";
+        cout << "doc ARENA"<<endl;
         ErroEstrutura();
         cout << doc.ErrorStr() << endl;
         return false;
     }
-    fclose(i);
     root=XMLHandle(&doc);
-    char *c;
     temp=root.FirstChildElement("svg").FirstChildElement("line").ToElement();
-    if(temp==NULL || temp->QueryIntAttribute("id",&linha.id)!=XML_SUCCESS
-     || temp->QueryIntAttribute("x1",&linha.x1)!=XML_SUCCESS
+    if(temp==NULL || temp->QueryIntAttribute("x1",&linha.x1)!=XML_SUCCESS
       || temp->QueryIntAttribute("x2",&linha.x2)!=XML_SUCCESS
        || temp->QueryIntAttribute("y1",&linha.y1)!=XML_SUCCESS
         || temp->QueryIntAttribute("y2",&linha.y2)!=XML_SUCCESS){
+            cout<<"linha"<<endl;
             ErroEstrutura();
+            fclose(i);
             return false;
         }
     for ( temp=root.FirstChildElement("svg").FirstChildElement("circle").ToElement() ; temp!=NULL; temp=temp->NextSiblingElement("circle")){
         if (temp->QueryStringAttribute("fill",&c)==XML_SUCCESS){
             circulo_temp.color=string(c);
-        }else ErroEstrutura();
+        }else {
+            cout<<"circulo"<<endl;
+            ErroEstrutura();
+            return false;
+        }
         if(temp->QueryIntAttribute("cx",&circulo_temp.cx)!=XML_SUCCESS
             || temp->QueryIntAttribute("cy",&circulo_temp.cy)!=XML_SUCCESS
-                || temp->QueryIntAttribute("raio",&circulo_temp.raio)!=XML_SUCCESS
-                    || temp->QueryIntAttribute("id",&circulo_temp.id)!=XML_SUCCESS){
+                || temp->QueryIntAttribute("r",&circulo_temp.raio)!=XML_SUCCESS){
+            
+            cout<<"circulo "<<temp<<endl;
             ErroEstrutura();
+            fclose(i);
             return false;
         }
         if(circulo_temp.color=="blue"){
             arena=circulo_temp;
         }else if(circulo_temp.color=="green"){
             jogador=circulo_temp;
-        }else entidades.push_back(circulo_temp);      
-    }
-    if(entidades.size()<=0){
-        cout<<"Nenhum circulo encontrado no arquivo da arena."<<endl;
+        }else if(circulo_temp.color=="red"){
+            voadores.push_back(circulo_temp);
+        }else if(circulo_temp.color=="orange"){
+            terrestres.push_back(circulo_temp);
+        }else {
+            cout<<"Cor indefinida: "<<circulo_temp.color<<endl;
+            fclose(i);
+            return false;
+        }     
+    } 
+    if(arena.raio<=0 || jogador.raio<=0 || voadores.size()==0 || terrestres.size()==0){
+        cout<<"Circulos invalidos ou faltando"<<endl;
+        fclose(i);
         return false;
     }
-    
+    fclose(i);
     return true;
 }
 
@@ -147,12 +178,6 @@ double distancia(int x1, int x2, int y1, int y2)
     double a = double(pow((max(x1, x2) - min(x1, x2)), 2)),
            b = double(pow((max(y1, y2) - min(y1, y2)), 2));
     return sqrt(a + b);
-}
-
-
-void idle()
-{
-    glutPostRedisplay();
 }
 
 void click(int button, int state, int x, int y)
@@ -172,27 +197,47 @@ void drag(int x, int y)
 
 void drawCircle(Circulo circ){
     double step = 2 * pi / segmentos, ox, oy;
+    cor(circ.color);
     glBegin(GL_POLYGON);{
         for (double i = 0; i <= 2 * pi; i += step){
-            ox=circ.raio*cos(i);
-            ox=circ.raio*sin(i);
-            //ox = 2 * (double(x) + circulo.raio * cos(i)) / double(janela.dimensao[0]) - 1.0;
-            //oy = 2 * (double(y) + circulo.raio * sin(i)) / double(janela.dimensao[1]) + 1.0;
-            glVertex2f(circ.cx+ox, circ.cy+oy);
+            ox=double(circ.raio*cos(i))+double(circ.cx);
+            oy=double(circ.raio*sin(i))+double(circ.cy);
+            glVertex2d(ox, oy);
         }
     }
     glEnd();
 }
 
+void drawLine(Linha l){
+    cor(l.color);
+    glBegin(GL_LINES);{
+        glVertex2i(l.x1,l.y1);
+        glVertex2i(l.x2,l.y2);
+    }
+    glEnd();
+}
+
 void display()
-{
+{  
     glClear(GL_COLOR_BUFFER_BIT); //limpa tudo
-    
+    drawCircle(arena);
+    for(auto i:terrestres){
+        drawCircle(i);
+    }
+    for(auto i:voadores){
+        drawCircle(i);
+    }
+    drawLine(linha);
+    drawCircle(jogador);
     glFlush();
 }
 
 int main(int argc, char *argv[])
 {
+    if(argc!=2){
+        cout<<"Favor informar apenas o caminho do config."<<endl;
+        return 1;
+    }
     string temp = string(argv[1]);
     temp.append("config.xml");
     if(temp.at(0)=='/'){
@@ -204,34 +249,19 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
-    sort(entidades.begin(),entidades.end());
     glutInit(&argc, argv);
-    glutInitWindowPosition(100, 100);
-    glutInitWindowSize(50, 50);
-    int raio=300;
-    for(auto i:entidades){
-        if (i.color=="blue"){
-            raio=i.raio;
-        }
-        
-    }
-    glutInitWindowSize(raio, raio);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glClearColor(0, 0, 0, 1.0);
-    glMatrixMode(GL_PROJECTION);
-    glOrtho(0.0, raio, 0, raio, 0, 1);
-    /*
-    glutCreateWindow(janela.titulo.c_str());
-    
-    glLoadIdentity();
+    glutInitWindowSize(arena.raio*2, arena.raio*2);
+    glutCreateWindow("trabalhocg");
+    init();
     
     //fim do setup
     glutDisplayFunc(display);
     glutMouseFunc(click);
     glutMotionFunc(drag);
     glutPassiveMotionFunc(passivemove);
-    ;;fim das definicoes de estados
+    //fim das definicoes de estados
     glutMainLoop();
-    */
+
     return 0;
 }
