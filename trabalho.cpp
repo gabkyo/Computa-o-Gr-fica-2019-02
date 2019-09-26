@@ -180,19 +180,8 @@ double distancia(int x1, int x2, int y1, int y2)
     return sqrt(a + b);
 }
 
-void click(int button, int state, int x, int y)
-{
-    
-}
+void teclado(unsigned char key,int x, int y){
 
-void passivemove(int x, int y)
-{
-   
-}
-
-void drag(int x, int y)
-{
-    
 }
 
 void drawCircle(Circulo circ){
@@ -257,9 +246,7 @@ int main(int argc, char *argv[])
     
     //fim do setup
     glutDisplayFunc(display);
-    glutMouseFunc(click);
-    glutMotionFunc(drag);
-    glutPassiveMotionFunc(passivemove);
+    glutKeyboardFunc(teclado);
     //fim das definicoes de estados
     glutMainLoop();
 
