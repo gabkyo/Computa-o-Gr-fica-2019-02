@@ -2,7 +2,7 @@
 	<arquivoDaArena>
 		<nome>arena</nome>
 		<tipo>svg</tipo>
-		<caminho>./Test_1/</caminho>
+		<caminho>Test_8/</caminho>
 	</arquivoDaArena>
-	<jogador vel="1.0"></jogador>
+	<jogador vel="1"></jogador>
 </aplicacao>
