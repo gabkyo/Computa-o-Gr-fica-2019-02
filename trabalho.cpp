@@ -73,20 +73,34 @@ void cor(string color){
     }else glColor3d(0.0,0.0,0.0);
 }
 
-bool teste(char *arquivo)
+bool teste(string arquivo)
 { // XML_SUCESS=0=false
-    FILE *i = fopen(arquivo, "r");
     string svg;
+    svg=arquivo;
+    if(arquivo[0]=='/' && svg.find("home")==string::npos){
+        svg="."+arquivo;
+    }
+    else if(arquivo[0]=='~'){
+        svg=string(getenv("HOME"))+arquivo.substr(1);
+        svg=svg.substr(1);
+    } 
+    cout<<svg<<endl;
+    FILE *i = fopen(svg.c_str(), "r");
     const char *c;
+    svg=arquivo.substr(1);
     if (i == NULL)
     {
-        cout << "FILE";
-        ErroIO();
-        return false;
+        i=fopen(svg.c_str(),"r");
+        if(i==NULL){
+            cout << "FILE ";
+            ErroIO();
+            return false;
+        }
+        
     }
     if (doc.LoadFile(i) != XML_SUCCESS)
     {
-        cout << "doc";
+        cout << "doc ";
         ErroEstrutura();
         cout << doc.ErrorStr() << endl;
         return false;
@@ -396,12 +410,7 @@ int main(int argc, char *argv[])
     }
     string temp = string(argv[1]);
     temp.append("config.xml");
-    if(temp.at(0)=='/'){
-        temp="."+temp;
-    }
-    char arquivo[temp.length() + 1];
-    strcpy(arquivo, temp.c_str());
-    if (!teste(arquivo))
+    if (!teste(temp))
     {
         return 1;
     }
