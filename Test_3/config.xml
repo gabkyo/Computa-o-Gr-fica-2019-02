@@ -1,8 +1,0 @@
-<aplicacao>
-	<arquivoDaArena>
-		<nome>arena</nome>
-		<tipo>svg</tipo>
-		<caminho>Test_3/</caminho>
-	</arquivoDaArena>
-	<jogador vel="2"></jogador>
-</aplicacao>
