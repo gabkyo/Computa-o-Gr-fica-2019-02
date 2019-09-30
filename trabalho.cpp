@@ -246,8 +246,8 @@ void mover(){  // - x a +x, +y a -y
         if(convtime(now,launch)>=4){
             double angulo=atan2(linha.y2-linha.y1,linha.x2-linha.x1);
             jogador.raio=double(ro*2);
-            vx=vel*1000*sin(angulo);
-            vy=vel*1000*cos(angulo);
+            vx=vx*vel*1000;
+            vy=vy*vel*1000;
             estado=3;
             wasd[0]=false;wasd[1]=false;wasd[2]=false;wasd[3]=false;
 
