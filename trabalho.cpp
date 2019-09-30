@@ -19,7 +19,7 @@ using namespace std;
 using namespace tinyxml2;
 
 int segmentos=30;
-double vel, vx,vy, ro;
+double vel, vx,vy, ro,ax,ay;
 bool wasd[4];
 int estado=0;
 time_t start, now,launch; //multiplicar por CLOCKS_PER_SEC
@@ -230,7 +230,12 @@ void idle(){
 
 void mover(){  // - x a +x, +y a -y
     bool act=true;
-    if(convtime(now,launch)>=2 && estado==1){
+    //cout<<convtime(now,launch)<<" "<<estado<<" "<<vx<<" "<<vy<<" "<<ax<<" "<<ay<<endl;
+    if(estado>=1 && estado<=2){
+        vx=ax*convtime(now,launch);
+        vy=ay*convtime(now,launch);
+    }
+    if((jogador.cx-min(linha.x1,linha.x2)>=(max(linha.x1,linha.x2)-min(linha.x1,linha.x2))/2) && estado==1){
         estado=2;
     }
     if(estado==3 || estado==0){
@@ -239,9 +244,10 @@ void mover(){  // - x a +x, +y a -y
     if(estado==2){
         jogador.raio=double(ro*convtime(now,launch)/2);
         if(convtime(now,launch)>=4){
+            double angulo=atan2(linha.y2-linha.y1,linha.x2-linha.x1);
             jogador.raio=double(ro*2);
-            vx=vel*vx;
-            vy=vel*vy;
+            vx=vel*1000*sin(angulo);
+            vy=vel*1000*cos(angulo);
             estado=3;
             wasd[0]=false;wasd[1]=false;wasd[2]=false;wasd[3]=false;
 
@@ -311,11 +317,11 @@ void keyUp(unsigned char key,int x, int y){
         wasd[2]=false;
         glutPostRedisplay();
     }
-    if(key=='d' && estado>2){
+    if(key=='a' && estado>2){
         wasd[1]=false;
         glutPostRedisplay();
     }
-    if(key=='a' && estado>2){
+    if(key=='d' && estado>2){
         wasd[3]=false;
         glutPostRedisplay();
     }
@@ -324,16 +330,14 @@ void keyUp(unsigned char key,int x, int y){
 void keyPress(unsigned char key,int x, int y){
     if(key=='u' && estado==0){
         ro=jogador.raio;
-        vx=double(linha.x2-linha.x1)/4;
-        vy=double(linha.y2-linha.y1)/4;
-        if(vx>0){
+        if(ax>0.0){
             wasd[1]=true;
         }else wasd[3]=true;
-        if(vy>0){
+        if(ay>0.0){
             wasd[0]=true;
         }else wasd[2]=true;
-        vx=abs(vx);
-        vy=abs(vy);
+        ax=abs(ax);
+        ay=abs(ay);
         estado=1;
         start=clock();
         launch=start;
@@ -350,12 +354,12 @@ void keyPress(unsigned char key,int x, int y){
         estado=4;
         glutPostRedisplay();
     }
-    if(key=='d' && estado>2){
+    if(key=='a' && estado>2){
         wasd[1]=true;
         estado=4;
         glutPostRedisplay();
     }
-    if(key=='a' && estado>2){
+    if(key=='d' && estado>2){
         wasd[3]=true;
         estado=4;
         glutPostRedisplay();
@@ -414,6 +418,8 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
+    ax=(linha.x2-linha.x1)/8;
+    ay=(linha.y2-linha.y1)/8;
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutInitWindowSize(arena.raio*2, arena.raio*2);
