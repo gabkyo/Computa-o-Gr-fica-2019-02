@@ -2,32 +2,32 @@
 #include <stdlib.h>
 #include <iostream>
 #include <string>
-#include <cstring>
-#include <vector>
-#include <algorithm>
-#include <cmath>
 #include "tinyxml2.h"
 #include "tinyxml2.cpp"
 #include <GL/glut.h>
 #include <GL/freeglut.h>
-#include <limits.h>
-#include <iterator>
-#include <time.h>
-#include <unistd.h>
+#include <vector>
+#include <math.h>
+
 
 using namespace std;
 using namespace tinyxml2;
-
-int segmentos=30;
-double vel, vx,vy, ro,ax,ay;
-bool wasd[4];
-int estado=0;
-time_t start, now,launch; //multiplicar por CLOCKS_PER_SEC
 
 struct Linha{
     string color;
     double x1,x2,y1,y2;
 }linha;
+
+struct Velocidade{
+    double vx;
+    double vy;
+    double vel;
+    double ax;
+    double ay;
+    double veltiro;
+    double angulo_o;
+    double angulo;
+} vel;
 
 struct Circulo
 {
@@ -36,11 +36,20 @@ struct Circulo
 
 }circulo_temp, jogador,arena ;
 
+struct Retangulo{
+    double lado,altura;
+    double cx,cy;
+    string color;
+}retan_temp;
+
 vector<Circulo> terrestres;
 vector<Circulo> voadores;
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
+int segmentos=12;
+double vel,veltiro,vx,vy,angulo;
+time_t now,start, launch;
 
 void init(){
     glClearColor(1, 1, 1, 1);
@@ -132,7 +141,11 @@ bool teste(string arquivo)
     }
     svg=svg+temp->GetText();
     temp=root.FirstChildElement("aplicacao").FirstChildElement("jogador").ToElement();
-    if(temp==NULL || temp->QueryDoubleAttribute("vel",&vel)!=XML_SUCCESS){
+    if(temp==NULL || temp->QueryDoubleAttribute("vel",&vel.vel)!=XML_SUCCESS){
+        ErroEstrutura();
+        return false;
+    }
+    if(temp==NULL || temp->QueryDoubleAttribute("velTiro",&vel.veltiro)!=XML_SUCCESS){
         ErroEstrutura();
         return false;
     }
@@ -224,147 +237,6 @@ bool contato(Circulo a, Circulo b){
     return distancia(a.cx,a.cy,b.cx,b.cy)<=double(a.raio+b.raio);
 }
 
-void idle(){
-    glutPostRedisplay();
-}
-
-void mover(){  // - x a +x, +y a -y
-    bool act=true;
-    //cout<<convtime(now,launch)<<" "<<estado<<" "<<vx<<" "<<vy<<" "<<ax<<" "<<ay<<endl;
-    if(estado>=1 && estado<=2){
-        vx=ax*convtime(now,launch);
-        vy=ay*convtime(now,launch);
-    }
-    if((jogador.cx-min(linha.x1,linha.x2)>=(max(linha.x1,linha.x2)-min(linha.x1,linha.x2))/2) && estado==1){
-        estado=2;
-    }
-    if(estado==3 || estado==0){
-        return;
-    }
-    if(estado==2){
-        jogador.raio=double(ro*convtime(now,launch)/2);
-        if(convtime(now,launch)>=4){
-            double angulo=atan2(linha.y2-linha.y1,linha.x2-linha.x1);
-            jogador.raio=double(ro*2);
-            vx=vx*vel*1000;
-            vy=vy*vel*1000;
-            estado=3;
-            wasd[0]=false;wasd[1]=false;wasd[2]=false;wasd[3]=false;
-
-        }
-    }
-    if(estado>2 && wasd[0]==false && wasd[1]==false && wasd[2]==false && wasd[3]==false){
-        estado=3;
-    }
-    circulo_temp=jogador;
-    if(!(wasd[0] && wasd[2])){
-        if(wasd[0]){
-            jogador.cy+=vy*tempo();
-        }
-        if(wasd[2]){
-            jogador.cy-=vy*tempo();
-        } 
-    }else {
-        wasd[0]=false;wasd[2]=false;
-    }
-    if(!(wasd[1] && wasd[3])){
-        if(wasd[3]){
-            jogador.cx-=vx*tempo();
-        } 
-        if(wasd[1]){
-            jogador.cx+=vx*tempo();
-        }
-    }else {
-        wasd[1]=false;wasd[3]=false;
-    }
-    if(!inbound()){
-        act=false;
-        if(estado>2){
-            estado=3;
-            
-        }
-    }
-    for(auto i:voadores){
-        if(contato(jogador,i)){
-            act=false;
-            if(estado>2){
-                estado=3;
-            }
-        }
-    }
-    if(!act){
-        jogador=circulo_temp;
-        if(estado<3){
-            estado=0;
-            jogador.cx=linha.x1;
-            jogador.cy=linha.y1;
-        }
-    }
-    if(estado>2 && wasd[0]==false && wasd[1]==false && wasd[2]==false && wasd[3]==false){
-        estado=3;
-    }
-}
-
-void keyUp(unsigned char key,int x, int y){
-    if(estado<3){
-        return;
-    }
-    if(key=='w' && estado>2){
-        wasd[0]=false;
-        glutPostRedisplay();
-    }
-    if(key=='s' && estado>2){
-        wasd[2]=false;
-        glutPostRedisplay();
-    }
-    if(key=='a' && estado>2){
-        wasd[1]=false;
-        glutPostRedisplay();
-    }
-    if(key=='d' && estado>2){
-        wasd[3]=false;
-        glutPostRedisplay();
-    }
-}
-
-void keyPress(unsigned char key,int x, int y){
-    if(key=='u' && estado==0){
-        ro=jogador.raio;
-        if(ax>0.0){
-            wasd[1]=true;
-        }else wasd[3]=true;
-        if(ay>0.0){
-            wasd[0]=true;
-        }else wasd[2]=true;
-        ax=abs(ax);
-        ay=abs(ay);
-        estado=1;
-        start=clock();
-        launch=start;
-        glutPostRedisplay();
-        
-    }
-    if(key=='w' && estado>2){
-        wasd[0]=true;
-        estado=4;
-        glutPostRedisplay();
-    }
-    if(key=='s' && estado>2){
-        wasd[2]=true;
-        estado=4;
-        glutPostRedisplay();
-    }
-    if(key=='a' && estado>2){
-        wasd[1]=true;
-        estado=4;
-        glutPostRedisplay();
-    }
-    if(key=='d' && estado>2){
-        wasd[3]=true;
-        estado=4;
-        glutPostRedisplay();
-    }
-}
 
 void drawCircle(Circulo circ){
     double step = 2 * M_PI / segmentos, ox, oy;
@@ -388,11 +260,45 @@ void drawLine(Linha l){
     glEnd();
 }
 
+void drawRetangle(Retangulo r){
+    cor(r.color);
+    glBegin(GL_POLYGON);{
+        glVertex2d(r.cx-r.lado/2,r.cy-r.altura/2);
+        glVertex2d(r.cx-r.lado/2,r.cy+r.altura/2);
+        glVertex2d(r.cx+r.lado/2,r.cy+r.altura/2);
+        glVertex2d(r.cx+r.lado/2,r.cy-r.altura/2);
+    }
+    glEnd();
+}
+
+void drawHelices(){
+    glColor3d(1.0,1.0,0.0);
+
+}
+
+void drawJogador(){
+    double theta;
+    glPushMatrix();
+    retan_temp.altura=jogador.raio/3;
+    retan_temp.lado=jogador.raio*2/5;
+    drawCircle(jogador);
+    circulo_temp.color="black";
+    circulo_temp.raio=jogador.raio/2;
+    circulo_temp.cx=jogador.cx+circulo_temp.raio;
+    circulo_temp.cy=jogador.cy;
+    drawCircle(circulo_temp);
+    retan_temp.color="black";
+    
+
+}
+
+void acao(){
+
+}
+
 void display(){
-    sleep(0.2); 
     now=clock();
-    mover();
-    glClear(GL_COLOR_BUFFER_BIT); //limpa tudo
+    glClear(GL_COLOR_BUFFER_BIT);
     drawCircle(arena);
     for(auto i:terrestres){
         drawCircle(i);
@@ -401,9 +307,27 @@ void display(){
         drawCircle(i);
     }
     drawLine(linha);
-    drawCircle(jogador);
+    acao();
+    drawJogador();
+
     glFlush();
     start=now;
+}
+
+void idle(){
+
+}
+
+void keyPress(unsigned char key, int x ,int y){
+
+}
+
+void keyUp(unsigned char key, int x ,int y){
+    
+}
+
+void mouse(int button, int state,int x,int y){
+
 }
 
 int main(int argc, char *argv[])
@@ -418,10 +342,10 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
-    ax=(linha.x2-linha.x1)/8;
-    ay=(linha.y2-linha.y1)/8;
+    vel.angulo_o=atan2(linha.y1-linha.y2,linha.x1-linha.x2);
+    vel.angulo=vel.angulo_o;
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(arena.raio*2, arena.raio*2);
     glutCreateWindow("trabalhocg");
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
@@ -431,6 +355,7 @@ int main(int argc, char *argv[])
     glutKeyboardUpFunc(keyUp);
     glutDisplayFunc(display);
     glutIdleFunc(idle);
+    glutMouseFunc(mouse);
     //fim das definicoes de estados
     glutMainLoop();
 
