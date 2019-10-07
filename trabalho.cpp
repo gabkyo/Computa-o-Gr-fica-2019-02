@@ -25,8 +25,9 @@ struct Velocidade{
     double ax;
     double ay;
     double veltiro;
-    double angulo_o;
+    double angulo_o;//radianos
     double angulo;
+    double angulo_canhao;
 } vel;
 
 struct Circulo
@@ -48,14 +49,17 @@ vector<Circulo> voadores;
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
 int segmentos=12;
-double vel,veltiro,vx,vy,angulo;
 time_t now,start, launch;
+int helice=0;
 
 void init(){
     glClearColor(1, 1, 1, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(arena.cx-arena.raio, arena.cx+arena.raio,arena.cy-arena.raio, arena.cy+arena.raio, -1, 1); //-y
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 }
 
 void ErroEstrutura()
@@ -79,6 +83,8 @@ void cor(string color){
         glColor3d(1.0,0.0,0.0);
     }else if(color=="green"){
         glColor3d(0.0,1.0,0.0);
+    }else if(color=="yellow"){
+        glColor3d(1.0,1.0,0.0);
     }else glColor3d(0.0,0.0,0.0);
 }
 
@@ -93,7 +99,6 @@ bool teste(string arquivo)
         svg=string(getenv("HOME"))+arquivo.substr(1);
         svg=svg.substr(1);
     } 
-    cout<<svg<<endl;
     FILE *i = fopen(svg.c_str(), "r");
     const char *c;
     svg=arquivo.substr(1);
@@ -152,8 +157,7 @@ bool teste(string arquivo)
     doc.Clear();
     c=svg.c_str();
     freopen(c,"r",i);
-    cout<<svg<<endl;
-    if (doc.LoadFile(svg.c_str()) != XML_SUCCESS)
+    if (doc.LoadFile(i) != XML_SUCCESS)
     {
         cout << "doc ARENA"<<endl;
         ErroEstrutura();
@@ -271,25 +275,59 @@ void drawRetangle(Retangulo r){
     glEnd();
 }
 
-void drawHelices(){
-    glColor3d(1.0,1.0,0.0);
-
-}
-
 void drawJogador(){
-    double theta;
+    double theta,angx,angy;
     glPushMatrix();
+    //transformado
+    glTranslated(jogador.cx,jogador.cy,0);
+    glRotated(vel.angulo*180/M_PI+90,0,0,1);
+    glScaled(0.5,1,1);
+    glTranslated(-jogador.cx,-jogador.cy,0);
     retan_temp.altura=jogador.raio/3;
-    retan_temp.lado=jogador.raio*2/5;
+    retan_temp.lado=jogador.raio*2/5;  
     drawCircle(jogador);
     circulo_temp.color="black";
-    circulo_temp.raio=jogador.raio/2;
-    circulo_temp.cx=jogador.cx+circulo_temp.raio;
-    circulo_temp.cy=jogador.cy;
+    circulo_temp.raio=jogador.raio*0.4;
+    circulo_temp.cx=jogador.cx;
+    circulo_temp.cy=jogador.cy+circulo_temp.raio;
     drawCircle(circulo_temp);
-    retan_temp.color="black";
     
-
+    glBegin(GL_POLYGON);{//asa esquerda
+        glVertex2d(jogador.cx-jogador.raio,jogador.cy-jogador.raio/3);
+        glVertex2d(jogador.cx-jogador.raio,jogador.cy+jogador.raio/3);
+        glVertex2d(jogador.cx-3*jogador.raio,jogador.cy);
+        glVertex2d(jogador.cx-3*jogador.raio,jogador.cy-2*jogador.raio/3);
+    }
+    glEnd();
+    glBegin(GL_POLYGON);{//asa direita
+        glVertex2d(jogador.cx+jogador.raio,jogador.cy-jogador.raio/3);
+        glVertex2d(jogador.cx+jogador.raio,jogador.cy+jogador.raio/3);
+        glVertex2d(jogador.cx+3*jogador.raio,jogador.cy);
+        glVertex2d(jogador.cx+3*jogador.raio,jogador.cy-2*jogador.raio/3);
+    }
+    glEnd();
+    glBegin(GL_POLYGON);{//cauda
+        glVertex2d(jogador.cx+jogador.raio/5,jogador.cy-jogador.raio);
+        glVertex2d(jogador.cx-jogador.raio/5,jogador.cy-jogador.raio);
+        glVertex2d(jogador.cx-jogador.raio/5,jogador.cy-jogador.raio/6);
+        glVertex2d(jogador.cx+jogador.raio/5,jogador.cy-jogador.raio/6);
+    }
+    glEnd();
+    angx=0.2*jogador.raio*cos(double(helice)*M_PI/180); //-45 a +45
+    angy=0.2*jogador.raio*sin(double(helice)*M_PI/180)+jogador.raio*0.9;
+    glBegin(GL_POLYGON);{//canhao
+        glVertex2d(jogador.cx-angx,jogador.cy+angy);
+        glVertex2d(jogador.cx+angx,jogador.cy+angy);
+        glVertex2d(jogador.cx+angx*2,jogador.cy+angy*2);
+       glVertex2d(jogador.cx-angx*2,jogador.cy+angy*2);
+    }
+    glEnd();
+    //desfazer transf
+    glTranslated(jogador.cx,jogador.cy,0);
+    glScaled(2,1,1);
+    glRotated(-90-vel.angulo*180/M_PI,0,0,1);
+    glTranslated(-jogador.cx,-jogador.cy,0);
+    glPopMatrix();
 }
 
 void acao(){
@@ -344,8 +382,9 @@ int main(int argc, char *argv[])
     }
     vel.angulo_o=atan2(linha.y1-linha.y2,linha.x1-linha.x2);
     vel.angulo=vel.angulo_o;
+    vel.angulo_canhao=0;
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutInitWindowSize(arena.raio*2, arena.raio*2);
     glutCreateWindow("trabalhocg");
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
@@ -357,6 +396,7 @@ int main(int argc, char *argv[])
     glutIdleFunc(idle);
     glutMouseFunc(mouse);
     //fim das definicoes de estados
+
     glutMainLoop();
 
     return 0;
