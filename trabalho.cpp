@@ -51,6 +51,8 @@ int segmentos=12;
 int helice=0;
 int estado=0; // parado,pista,aumenta,voando,parado
 const int tock=250;
+int start,launch;
+int wasd[4];
 
 void init(){
     glClearColor(1, 1, 1, 1);
@@ -84,6 +86,35 @@ void cor(string color){
     }else if(color=="yellow"){
         glColor3d(1.0,1.0,0.0);
     }else glColor3d(0.0,0.0,0.0);
+}
+
+void direcao(){
+    if((wasd[0] && wasd[1] && wasd[2] && wasd[3]) || !(wasd[0] || wasd[1] || wasd[2] || wasd[3])){
+        estado=4;
+    }else{
+        if(wasd[0]==wasd[2]){
+            if(wasd[1]){
+                angulo=-M_PI/2;
+            }else if(wasd[3]){
+                angulo=M_PI/2;
+            }
+        }else if(wasd[1]==wasd[3]){
+            if(wasd[0]){
+                angulo=0;
+            }else if(wasd[2]){
+                angulo=M_PI;
+            }
+        }else if(wasd[0] && wasd[1]){
+            angulo=-M_PI/4;
+        }else if(wasd[0] && wasd[3]){
+            angulo=M_PI/4;
+        }else if(wasd[2] && wasd[1]){
+            angulo=-3*M_PI/4;
+        }else if(wasd[2] && wasd[3]){
+            angulo=3*M_PI/4;
+        }
+        estado=3;
+    }
 }
 
 bool teste(string arquivo)
@@ -243,48 +274,7 @@ bool contato(Circulo a, Circulo b){
     return distancia(a.cx,a.cy,b.cx,b.cy)<=double(a.raio+b.raio);
 }
 
-void direcao(bool y,bool up){
-    if(y && up){
-        dir[1]++;
-    }
-    else if(!(y) && up){
-        dir[0]++;
-    }
-    else if(y && !(up)){
-        dir[1]--;
-    }else dir[0]--;
-    if(dir[0]==0 && dir[1]==0){
-        estado=4;
-    }else if(estado>2){
-        estado=3;
-        if(dir[0]==1 && dir[1]==1){
-            angulo=M_PI/4;
-        }
-        if(dir[0]==-1 && dir[1]==1){
-            angulo=-M_PI/4;
-        }
-        if(dir[0]==1 && dir[1]==-1){
-            angulo=3*M_PI/4;
-        }
-        if(dir[0]==1 && dir[1]==1){
-            angulo=-3*M_PI/4;
-        }
-        if(dir[0]==1 && dir[1]==0){
-            angulo=M_PI/2;
-        }
-        if(dir[0]==0 && dir[1]==1){
-            angulo=0;
-        }
-        if(dir[0]==-1 && dir[1]==0){
-            angulo=-M_PI/2;
-        }
-        if(dir[0]==0 && dir[1]==-1){
-            angulo=M_PI;
-        }
-    }
-    glutPostRedisplay();
-}
-
+/* 
 void raio(int value){
     double i=double(value)/1000;
     if(i<=2){
@@ -300,30 +290,53 @@ void timer(int value){
         estado==2;
         glutTimerFunc(2000,timer,3);
         raio(1000);
+        cout<<"2 s"<<endl;
     }else if(value==3){
         estado=4;
         v=vel*a*8;
+        cout<<"4 s"<<endl;
     }
     glutPostRedisplay();
 }
 
-
+*/
 
 
 void tick(int value){
     double theta,angx,angy,tempo;
-    tempo=double(value)/1000;
-    if(estado>0 && estado<3){
-        angy=pow(tempo,2)*a*cos(angulo)/2; //s=at^2/2
-        angx=pow(tempo,2)*a*sin(angulo)/2;//cos*sen/cos=sen
+    tempo=double(glutGet(GLUT_ELAPSED_TIME)-value)/1000; //tempo desde ultimo passo s
+    if(estado<3){
+        launch+=glutGet(GLUT_ELAPSED_TIME)-value;//tempo desde lancado
+    }else launch=0;
+    if(launch>=2000 && launch<4000 && estado==1){
+        estado=2;
+    }else if(launch>=4000 && estado==2){
+        jogador.cx=linha.x2;
+        jogador.cy=linha.y2;
+        v=vel*a*8;
+        a=0;
+        estado=4;
+    }
+    if(estado!=0 && estado!=4){
+        angy=(pow(tempo,2)*a*cos(angulo)/2)+tempo*v*cos(angulo); //s=at^2/2
+        angx=(pow(tempo,2)*a*sin(angulo)/2)+tempo*v*sin(angulo);//cos*sen/cos=sen
         jogador.cx+=angx;
         jogador.cy+=angy;
-    }else if(estado==3){
-       jogador.cx+=tempo*v*sin(angulo);
-       jogador.cy+=tempo*v*cos(angulo); 
+        for (auto i:voadores)
+        {
+            /* code */
+        }
+        
+        cout<<angx<<" "<<angy<<endl;
+        if(estado==2){
+            jogador.raio=raio_o*launch/2000;
+        }
+        if(estado<3){
+            v+=tempo*a;
+        }
     }
     glutPostRedisplay();
-    glutTimerFunc(tock,tick,tock);
+    glutTimerFunc(tock,tick,glutGet(GLUT_ELAPSED_TIME));
 }
 
 void drawCircle(Circulo circ){
@@ -447,40 +460,51 @@ void keyPress(unsigned char key, int x ,int y){
 
     }else if(key=='u' && estado==0){
         estado=1;
-        a=dist_linha();
+        a=dist_linha()/8;
         angulo_o=rad_linha(); //radianos
         angulo=angulo_o;
         angulo_canhao=0;
-        glutTimerFunc(2000,timer,1);
-        glutTimerFunc(tock,tick,tock);
+        launch=0;
+        raio_o=jogador.raio;
+        v=0;
+        start=glutGet(GLUT_ELAPSED_TIME);
+        glutTimerFunc(tock,tick,start);
         glutPostRedisplay();
     }
     if(key=='w' && estado>2){
-        direcao(true,true);
+        wasd[0]=1;
+        direcao();
     }
     if(key=='s' && estado>2){
-        direcao(true,false);
+        wasd[2]=1;
+        direcao();
     }
     if(key=='a' && estado>2){
-        direcao(false,false);
+        wasd[1]=1;
+        direcao();
     }
     if(key=='d' && estado>2){
-        direcao(false,true);
+        wasd[3]=1;
+        direcao();
     }
 }
 
 void keyUp(unsigned char key, int x ,int y){
     if(key=='w' && estado>2){
-        direcao(false,false);
+        wasd[0]=0;
+        direcao();
     }
     if(key=='s' && estado>2){
-        direcao(false,true);
+        wasd[2]=0;
+        direcao();
     }
     if(key=='a' && estado>2){
-        direcao(true,true);
+        wasd[1]=0;
+        direcao();
     }
     if(key=='d' && estado>2){
-        direcao(true,false);
+        wasd[3]=0;
+        direcao();
     }
 }
 
@@ -513,7 +537,6 @@ int main(int argc, char *argv[])
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(arena.raio*2, arena.raio*2);
     glutCreateWindow("trabalhocg");
-    glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
     init();
     //fim do setup
     glutKeyboardFunc(keyPress);
