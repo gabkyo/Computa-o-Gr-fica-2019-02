@@ -50,7 +50,7 @@ XMLElement *temp = NULL; //nodo  para manipular
 int segmentos=12;
 int helice=0;
 int estado=0; // parado,pista,aumenta,voando,parado
-const int tock=250;
+const int tock=50;
 int start,launch;
 int wasd[4];
 
@@ -304,6 +304,7 @@ void timer(int value){
 
 void tick(int value){
     double theta,angx,angy,tempo;
+    bool toque=false;
     tempo=double(glutGet(GLUT_ELAPSED_TIME)-value)/1000; //tempo desde ultimo passo s
     if(estado<3){
         launch+=glutGet(GLUT_ELAPSED_TIME)-value;//tempo desde lancado
@@ -322,12 +323,19 @@ void tick(int value){
         angx=(pow(tempo,2)*a*sin(angulo)/2)+tempo*v*sin(angulo);//cos*sen/cos=sen
         jogador.cx+=angx;
         jogador.cy+=angy;
-        for (auto i:voadores)
-        {
-            /* code */
+        for (auto i:voadores){
+            if(contato(jogador,i)){
+                toque=true;
+            }
         }
-        
-        cout<<angx<<" "<<angy<<endl;
+        if(toque){
+            jogador.cx-=angx;
+            jogador.cy-=angy;
+        }        
+        if(helice==360){
+            helice=0;
+        }
+        helice=helice+10;
         if(estado==2){
             jogador.raio=raio_o*launch/2000;
         }
@@ -388,43 +396,69 @@ void drawJogador(){
     circulo_temp.cx=jogador.cx;
     circulo_temp.cy=jogador.cy+circulo_temp.raio;
     drawCircle(circulo_temp);
+    glTranslated(jogador.cx,jogador.cy,0);
     
     glBegin(GL_POLYGON);{//asa esquerda
-        glVertex2d(jogador.cx-jogador.raio,jogador.cy-jogador.raio/3);
-        glVertex2d(jogador.cx-jogador.raio,jogador.cy+jogador.raio/3);
-        glVertex2d(jogador.cx-3*jogador.raio,jogador.cy);
-        glVertex2d(jogador.cx-3*jogador.raio,jogador.cy-2*jogador.raio/3);
+        glVertex2d(-jogador.raio,-jogador.raio/3);
+        glVertex2d(-jogador.raio,+jogador.raio/3);
+        glVertex2d(-3*jogador.raio,0);
+        glVertex2d(-3*jogador.raio,-2*jogador.raio/3);
     }
     glEnd();
     glBegin(GL_POLYGON);{//asa direita
-        glVertex2d(jogador.cx+jogador.raio,jogador.cy-jogador.raio/3);
-        glVertex2d(jogador.cx+jogador.raio,jogador.cy+jogador.raio/3);
-        glVertex2d(jogador.cx+3*jogador.raio,jogador.cy);
-        glVertex2d(jogador.cx+3*jogador.raio,jogador.cy-2*jogador.raio/3);
+        glVertex2d(+jogador.raio,-jogador.raio/3);
+        glVertex2d(+jogador.raio,+jogador.raio/3);
+        glVertex2d(+3*jogador.raio,0);
+        glVertex2d(+3*jogador.raio,-2*jogador.raio/3);
     }
     glEnd();
     glBegin(GL_POLYGON);{//cauda
-        glVertex2d(jogador.cx+jogador.raio/5,jogador.cy-jogador.raio);
-        glVertex2d(jogador.cx-jogador.raio/5,jogador.cy-jogador.raio);
-        glVertex2d(jogador.cx-jogador.raio/5,jogador.cy-jogador.raio/6);
-        glVertex2d(jogador.cx+jogador.raio/5,jogador.cy-jogador.raio/6);
+        glVertex2d(+jogador.raio/5,-jogador.raio);
+        glVertex2d(-jogador.raio/5,-jogador.raio);
+        glVertex2d(-jogador.raio/5,-jogador.raio/6);
+        glVertex2d(+jogador.raio/5,-jogador.raio/6);
     }
     glEnd();
-    angx=jogador.raio*0.5*sin(angulo_canhao);
-    angy=jogador.raio*0.5*cos(angulo_canhao);
-    glTranslated(jogador.cx,jogador.cy+jogador.raio,0);
-    glBegin(GL_POLYGON);{//canhao
+    //helices
+    cor("yellow");
+    angx=jogador.raio*0.5*sqrt(2)/2;
+    angy=angx;
+    glTranslated(2*jogador.raio,0,0);
+    glRotated(helice*180/M_PI,0,0,1);
+    glBegin(GL_POLYGON);{
+        glVertex2d(0,0);
+        glVertex2d(angx,angy);
+        glVertex2d(angx,-angy);
+        glVertex2d(-angx,angy);
+        glVertex2d(-angx,-angy);
+    }
+    glEnd();
+    glRotated(-helice*180/M_PI,0,0,1);
+    glTranslated(-4*jogador.raio,0,0);
+    glRotated(helice*180/M_PI,0,0,1);
+    glBegin(GL_POLYGON);{
+        glVertex2d(0,0);
+        glVertex2d(angx,angy);
+        glVertex2d(angx,-angy);
+        glVertex2d(-angx,angy);
+        glVertex2d(-angx,-angy);
+    }
+    glRotated(-helice*180/M_PI,0,0,1);
+    glTranslated(2*jogador.raio,0,0);
+    //canhao consertar
+    cor("red");
+    glRotated(angulo_canhao*180/M_PI,0,0,1);
+    glBegin(GL_POLYGON);{
         glVertex2d(+jogador.raio/5,0);
         glVertex2d(-jogador.raio/5,0);
-        glVertex2d(-jogador.raio/5+angx,angy);
-        glVertex2d(+jogador.raio/5+angx,angy);
+        glVertex2d(-jogador.raio/5,jogador.raio/2);
+        glVertex2d(+jogador.raio/5,jogador.raio/2);
     }
     glEnd();
-    glTranslated(-jogador.cx,-jogador.cy-jogador.raio,0);
+    glRotated(-angulo_canhao*180/M_PI,0,0,1);
     //desfazer transf
-    glTranslated(jogador.cx,jogador.cy,0);
     glScaled(2,1,1);
-    glRotated(+angulo*180/M_PI,0,0,1);
+    glRotated(angulo*180/M_PI,0,0,1);
     glTranslated(-jogador.cx,-jogador.cy,0);
     glPopMatrix();
 }
