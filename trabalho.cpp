@@ -28,6 +28,7 @@ double a;
 double v;
 double raio_o;
 int dir[2];
+double multiplicador=1.0;
 
 struct Circulo
 {
@@ -47,7 +48,7 @@ vector<Circulo> voadores;
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
-int segmentos=12;
+int segmentos=50;
 int helice=0;
 int estado=0; // parado,pista,aumenta,voando,parado
 const int tock=50;
@@ -88,7 +89,7 @@ void cor(string color){
     }else glColor3d(0.0,0.0,0.0);
 }
 
-void direcao(){
+/*void direcao(){
     if((wasd[0] && wasd[1] && wasd[2] && wasd[3]) || !(wasd[0] || wasd[1] || wasd[2] || wasd[3])){
         estado=4;
     }else{
@@ -115,7 +116,7 @@ void direcao(){
         }
         estado=3;
     }
-}
+}*/
 
 bool teste(string arquivo)
 { // XML_SUCESS=0=false
@@ -305,6 +306,9 @@ void timer(int value){
 void tick(int value){
     double theta,angx,angy,tempo;
     bool toque=false;
+    if(estado==0){
+        return;
+    }
     tempo=double(glutGet(GLUT_ELAPSED_TIME)-value)/1000; //tempo desde ultimo passo s
     if(estado<3){
         launch+=glutGet(GLUT_ELAPSED_TIME)-value;//tempo desde lancado
@@ -314,13 +318,13 @@ void tick(int value){
     }else if(launch>=4000 && estado==2){
         jogador.cx=linha.x2;
         jogador.cy=linha.y2;
-        v=vel*a*8;
+        v=vel*a*8*multiplicador;
         a=0;
-        estado=4;
+        estado=3;
     }
     if(estado!=0 && estado!=4){
-        angy=(pow(tempo,2)*a*cos(angulo)/2)+tempo*v*cos(angulo); //s=at^2/2
-        angx=(pow(tempo,2)*a*sin(angulo)/2)+tempo*v*sin(angulo);//cos*sen/cos=sen
+        angy=(pow(tempo,2)*a*cos(angulo)/2)+tempo*v*multiplicador*cos(angulo); //s=at^2/2
+        angx=(pow(tempo,2)*a*sin(angulo)/2)+tempo*v*multiplicador*sin(angulo);//cos*sen/cos=sen
         jogador.cx+=angx;
         jogador.cy+=angy;
         for (auto i:voadores){
@@ -331,7 +335,21 @@ void tick(int value){
         if(toque){
             jogador.cx-=angx;
             jogador.cy-=angy;
-        }        
+        } 
+        if(!inbound()){ //consertar
+            double alfa=radianos(arena.cx,jogador.cx,arena.cy,jogador.cy),beta,theta;
+            theta=angulo-alfa;
+            beta=(M_PI-2*abs(theta))*theta/abs(theta)+angulo;
+            if(abs(beta)<M_PI){
+               jogador.cx=arena.cx+(arena.raio-jogador.raio)*cos(beta);
+               jogador.cy=arena.cy+(arena.raio-jogador.raio)*sin(beta); 
+               cout<<"1 "<<beta/M_PI<<endl;
+            }else{
+                jogador.cx=arena.cx+(arena.raio-jogador.raio)*sin(beta);
+                jogador.cy=arena.cy-(arena.raio-jogador.raio)*cos(beta);
+                cout<<"2 "<<beta/M_PI<<endl;
+            }
+        }       
         if(helice==360){
             helice=0;
         }
@@ -443,11 +461,13 @@ void drawJogador(){
         glVertex2d(-angx,angy);
         glVertex2d(-angx,-angy);
     }
+    glEnd();
     glRotated(-helice*180/M_PI,0,0,1);
     glTranslated(2*jogador.raio,0,0);
     //canhao consertar
-    cor("red");
-    glRotated(angulo_canhao*180/M_PI,0,0,1);
+    cor("yellow");
+    glTranslated(0,jogador.raio,0);
+    glRotated(-angulo_canhao*180/M_PI,0,0,1);
     glBegin(GL_POLYGON);{
         glVertex2d(+jogador.raio/5,0);
         glVertex2d(-jogador.raio/5,0);
@@ -455,7 +475,8 @@ void drawJogador(){
         glVertex2d(+jogador.raio/5,jogador.raio/2);
     }
     glEnd();
-    glRotated(-angulo_canhao*180/M_PI,0,0,1);
+    glRotated(angulo_canhao*180/M_PI,0,0,1);
+    glTranslated(0,-jogador.raio,0);
     //desfazer transf
     glScaled(2,1,1);
     glRotated(angulo*180/M_PI,0,0,1);
@@ -490,6 +511,13 @@ void keyPress(unsigned char key, int x ,int y){
         jogador.cy=linha.y1;
         angulo=angulo_o;
         estado=0;
+        v=0;
+        a=0;
+        helice=0;
+        start=0;
+        launch=0;
+        multiplicador=1;
+        jogador.raio=raio_o;
         glutPostRedisplay();
 
     }else if(key=='u' && estado==0){
@@ -505,41 +533,24 @@ void keyPress(unsigned char key, int x ,int y){
         glutTimerFunc(tock,tick,start);
         glutPostRedisplay();
     }
-    if(key=='w' && estado>2){
-        wasd[0]=1;
-        direcao();
-    }
-    if(key=='s' && estado>2){
-        wasd[2]=1;
-        direcao();
-    }
     if(key=='a' && estado>2){
-        wasd[1]=1;
-        direcao();
+        angulo-=0.1*M_PI;
     }
     if(key=='d' && estado>2){
-        wasd[3]=1;
-        direcao();
+        angulo+=0.1*M_PI;
+    }
+    if(key=='+' && estado>2){
+        multiplicador+=0.5;
+    }
+    if(key=='-' && estado>2){
+        if(multiplicador>=0.5){
+            multiplicador-=0.5;
+        }else multiplicador=0;
+        
     }
 }
 
 void keyUp(unsigned char key, int x ,int y){
-    if(key=='w' && estado>2){
-        wasd[0]=0;
-        direcao();
-    }
-    if(key=='s' && estado>2){
-        wasd[2]=0;
-        direcao();
-    }
-    if(key=='a' && estado>2){
-        wasd[1]=0;
-        direcao();
-    }
-    if(key=='d' && estado>2){
-        wasd[3]=0;
-        direcao();
-    }
 }
 
 void mouse(int button, int state,int x,int y){
