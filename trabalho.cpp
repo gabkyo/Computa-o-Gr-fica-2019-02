@@ -43,8 +43,22 @@ struct Retangulo{
     string color;
 }retan_temp;
 
+struct Municao{
+    Circulo tiro;
+    double angulo;
+};
+
+struct Bomba{
+    Circulo shell;
+    int start;
+    double angulo;
+};
+
 vector<Circulo> terrestres;
 vector<Circulo> voadores;
+vector<Municao> tiros;
+vector<Bomba> bombas;
+
 
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
@@ -52,8 +66,8 @@ int segmentos=50;
 int helice=0;
 int estado=0; // parado,pista,aumenta,voando,parado
 const int tock=50;
-int start,launch;
-int wasd[4];
+int start,launch, delay[2];
+bool ataque[2]={true,true};
 
 void init(){
     glClearColor(1, 1, 1, 1);
@@ -88,35 +102,6 @@ void cor(string color){
         glColor3d(1.0,1.0,0.0);
     }else glColor3d(0.0,0.0,0.0);
 }
-
-/*void direcao(){
-    if((wasd[0] && wasd[1] && wasd[2] && wasd[3]) || !(wasd[0] || wasd[1] || wasd[2] || wasd[3])){
-        estado=4;
-    }else{
-        if(wasd[0]==wasd[2]){
-            if(wasd[1]){
-                angulo=-M_PI/2;
-            }else if(wasd[3]){
-                angulo=M_PI/2;
-            }
-        }else if(wasd[1]==wasd[3]){
-            if(wasd[0]){
-                angulo=0;
-            }else if(wasd[2]){
-                angulo=M_PI;
-            }
-        }else if(wasd[0] && wasd[1]){
-            angulo=-M_PI/4;
-        }else if(wasd[0] && wasd[3]){
-            angulo=M_PI/4;
-        }else if(wasd[2] && wasd[1]){
-            angulo=-3*M_PI/4;
-        }else if(wasd[2] && wasd[3]){
-            angulo=3*M_PI/4;
-        }
-        estado=3;
-    }
-}*/
 
 bool teste(string arquivo)
 { // XML_SUCESS=0=false
@@ -275,39 +260,54 @@ bool contato(Circulo a, Circulo b){
     return distancia(a.cx,a.cy,b.cx,b.cy)<=double(a.raio+b.raio);
 }
 
-/* 
-void raio(int value){
-    double i=double(value)/1000;
-    if(i<=2){
-        jogador.raio=value*raio_o;
-        glutTimerFunc(tock,raio,value+tock);
-    }
+void addTiro(double ang_c,double ang_j,double x, double y, double r){
+    Municao temp;
+    temp.tiro.color="yellow";
+    temp.tiro.raio=r/5;
+    temp.angulo=ang_c+ang_j;
+    temp.tiro.cx=x+r*sin(ang_j)+r*0.5*sin(ang_c);
+    temp.tiro.cy=y+r*cos(ang_j)+r*0.5*cos(ang_c);
+    tiros.push_back(temp);
 }
 
-
-void timer(int value){
-    if(value==2){
-        raio_o=jogador.raio;
-        estado==2;
-        glutTimerFunc(2000,timer,3);
-        raio(1000);
-        cout<<"2 s"<<endl;
-    }else if(value==3){
-        estado=4;
-        v=vel*a*8;
-        cout<<"4 s"<<endl;
-    }
-    glutPostRedisplay();
+void addBomba(double ang_c,double ang_j,double x, double y, double r){
+    Bomba temp;
+    temp.shell.color="black";
+    temp.shell.raio=r/5;
+    temp.angulo=ang_c+ang_j;
+    temp.shell.cx=x;
+    temp.shell.cy=y;
+    temp.start=glutGet(GLUT_ELAPSED_TIME);
+    bombas.push_back(temp);
 }
 
-*/
+void recarga(bool a){ //tiro ou bomba
+    if(a){
+        if(delay[0]>=8){
+            addTiro(angulo_canhao,angulo,jogador.cx,jogador.cy,jogador.raio);
+            delay[0]=0;
+        }else delay[0]++;
+    }else{
+        if(delay[1]>=16){
+            addBomba(angulo_canhao,angulo,jogador.cx,jogador.cy,jogador.raio);
+            delay[1]=0;
+        }else delay[1]++;
+    }
+    
+    
+}
 
 
 void tick(int value){
-    double theta,angx,angy,tempo;
+    double theta,angx,angy,tempo,alfa,beta,gamma,temp;
     bool toque=false;
     if(estado==0){
         return;
+    }
+    if(ataque[0] && estado>2){
+        recarga(true);
+    }else if(ataque[1] && estado>2){
+        recarga(false);
     }
     tempo=double(glutGet(GLUT_ELAPSED_TIME)-value)/1000; //tempo desde ultimo passo s
     if(estado<3){
@@ -336,20 +336,43 @@ void tick(int value){
             jogador.cx-=angx;
             jogador.cy-=angy;
         } 
-        if(!inbound()){ //consertar
-            double alfa=radianos(arena.cx,jogador.cx,arena.cy,jogador.cy),beta,theta;
-            theta=angulo-alfa;
-            beta=(M_PI-2*abs(theta))*theta/abs(theta)+angulo;
+        if(!inbound()){ //parece bom
+            alfa=radianos(arena.cx,jogador.cx,arena.cy,jogador.cy);
+            gamma=angulo-alfa;
+            beta=(M_PI-2*abs(gamma))*gamma/abs(gamma)+angulo;
             if(abs(beta)<M_PI){
                jogador.cx=arena.cx+(arena.raio-jogador.raio)*cos(beta);
-               jogador.cy=arena.cy+(arena.raio-jogador.raio)*sin(beta); 
-               cout<<"1 "<<beta/M_PI<<endl;
+               jogador.cy=arena.cy-(arena.raio-jogador.raio)*sin(beta);
             }else{
                 jogador.cx=arena.cx+(arena.raio-jogador.raio)*sin(beta);
                 jogador.cy=arena.cy-(arena.raio-jogador.raio)*cos(beta);
-                cout<<"2 "<<beta/M_PI<<endl;
             }
-        }       
+            for (auto i:voadores){
+                if(contato(jogador,i)){
+                    toque=true;
+                }
+            }
+            if(toque){
+                jogador.cx=arena.cx+(arena.raio-jogador.raio)*cos(alfa);
+                jogador.cy=arena.cy+(arena.raio-jogador.raio)*sin(alfa); 
+            }
+        }
+        for(auto i=tiros.begin();i!=tiros.end();){// posicao dos tiros
+            (*i).tiro.cx+=v*multiplicador*tempo*sin((*i).angulo);
+            (*i).tiro.cy+=v*multiplicador*tempo*cos((*i).angulo);
+            if(distancia((*i).tiro,arena)>=arena.raio){
+                i=tiros.erase(i);
+            }else i++;
+        } 
+        for(auto i=bombas.begin();i!=bombas.end();){// posicao dos tiros
+            temp=double(glutGet(GLUT_ELAPSED_TIME)-(*i).start)/4000;
+            (*i).shell.cx+=v*multiplicador*tempo*sin((*i).angulo);
+            (*i).shell.cy+=v*multiplicador*tempo*cos((*i).angulo);
+            (*i).shell.raio=double(jogador.raio*0.5*(1-temp/2));
+            if((temp==1) || (distancia((*i).shell,arena)>=arena.raio)){
+                i=bombas.erase(i);
+            }else i++;
+        }      
         if(helice==360){
             helice=0;
         }
@@ -465,7 +488,7 @@ void drawJogador(){
     glRotated(-helice*180/M_PI,0,0,1);
     glTranslated(2*jogador.raio,0,0);
     //canhao consertar
-    cor("yellow");
+    cor("red");
     glTranslated(0,jogador.raio,0);
     glRotated(-angulo_canhao*180/M_PI,0,0,1);
     glBegin(GL_POLYGON);{
@@ -484,10 +507,6 @@ void drawJogador(){
     glPopMatrix();
 }
 
-void acao(){
-
-}
-
 void display(){
     glClear(GL_COLOR_BUFFER_BIT);
     drawCircle(arena);
@@ -498,7 +517,12 @@ void display(){
         drawCircle(i);
     }
     drawLine(linha);
-    acao();
+    for(auto i:tiros){
+        drawCircle(i.tiro);
+    }
+    for(auto i:bombas){
+        drawCircle(i.shell);
+    }
     drawJogador();
     glFlush();
     glutSwapBuffers(); 
@@ -518,16 +542,21 @@ void keyPress(unsigned char key, int x ,int y){
         launch=0;
         multiplicador=1;
         jogador.raio=raio_o;
+        tiros.clear();
         glutPostRedisplay();
 
     }else if(key=='u' && estado==0){
         estado=1;
+        delay[0]=8;
+        delay[1]=16;
         a=dist_linha()/8;
         angulo_o=rad_linha(); //radianos
         angulo=angulo_o;
         angulo_canhao=0;
         launch=0;
         raio_o=jogador.raio;
+        ataque[0]=false;
+        ataque[1]=false;
         v=0;
         start=glutGet(GLUT_ELAPSED_TIME);
         glutTimerFunc(tock,tick,start);
@@ -554,7 +583,16 @@ void keyUp(unsigned char key, int x ,int y){
 }
 
 void mouse(int button, int state,int x,int y){
-
+    if((button==GLUT_LEFT_BUTTON) && (state==GLUT_DOWN) && estado>2){
+        ataque[0]=true;
+    }else if((button==GLUT_LEFT_BUTTON) && (state==GLUT_UP) && estado>2){
+        ataque[0]=false;
+    }
+    if((button==GLUT_RIGHT_BUTTON) && (state==GLUT_DOWN) && estado>2){
+        ataque[1]=true;
+    }else if((button==GLUT_RIGHT_BUTTON) && (state==GLUT_UP) && estado>2){
+        ataque[1]=false;
+    }
 }
 
 void tracking(int x, int y){
