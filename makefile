@@ -1,8 +1,13 @@
+exec=trabalhocg
+main=trabalho.cpp
+target=./
 all:
-	g++ -g -std=c++11 -o trabalhocg trabalho.cpp -lGL -lGLU -lglut
+	g++ -g -std=c++11 -o $(exec) $(main) -lGL -lGLU -lglut
 clean:
-	rm -rf trabalhocg
-debug:
-	gdb --args trabalhocg ./
+	rm -rf $(exec)
 run:
-	./trabalhocg ./
+	g++ -g -std=c++11 -o $(exec) $(main) -lGL -lGLU -lglut
+ifdef target
+	./$(exec) $(target)
+endif
+

@@ -66,7 +66,7 @@ int segmentos=50;
 int helice=0;
 int estado=0; // parado,pista,aumenta,voando,parado
 const int tock=50;
-int start,launch, delay[2];
+int start,delay[2],launch;
 bool ataque[2]={true,true};
 
 void init(){
@@ -75,6 +75,22 @@ void init(){
     glMatrixMode(GL_PROJECTION);
     glMatrixMode(GL_MODELVIEW);
     gluOrtho2D(arena.cx-arena.raio, arena.cx+arena.raio,arena.cy-arena.raio, arena.cy+arena.raio); //-y
+}
+
+void reset(){
+    jogador.cx=linha.x1;
+    jogador.cy=linha.y1;
+    angulo=angulo_o;
+    estado=0;
+    v=0;
+    a=0;
+    helice=0;
+    start=0;
+    launch=0;
+    multiplicador=1;
+    jogador.raio=raio_o;
+    tiros.clear();
+    glutPostRedisplay();
 }
 
 void ErroEstrutura()
@@ -239,9 +255,10 @@ double dist_linha(){
     return distancia(linha.x1,linha.y1,linha.x2,linha.y2);
 }
 
-double radianos(double x1, double x2, double y1, double y2){
-    return atan2(x1*x2 + y1*y2,x1*y2 - y1*x2);
+double radianos(double x1, double x2, double y1, double y2){ //referencia 
+    return atan2(x2-x1,y2-y1);
 }
+
 
 double rad_linha(){
     return radianos(linha.x1,linha.x2,linha.y1,linha.y2);
@@ -258,6 +275,28 @@ bool inbound(){
 
 bool contato(Circulo a, Circulo b){
     return distancia(a.cx,a.cy,b.cx,b.cy)<=double(a.raio+b.raio);
+}
+
+int rad2graus(double rad){
+    return rad*180/M_PI;
+}
+
+double graus2rad(double graus){
+    return graus*M_PI/180;
+}
+
+double ms2s(int ms){
+    return double(ms)/1000.0;
+}
+
+double rad2pi(double a){ //de 0 a 2pi
+    while(a>2*M_PI){
+        a-=2*M_PI;
+    }
+    while(a<0){
+        a+=2*M_PI;
+    }
+    return a;
 }
 
 void addTiro(double ang_c,double ang_j,double x, double y, double r){
@@ -309,9 +348,9 @@ void tick(int value){
     }else if(ataque[1] && estado>2){
         recarga(false);
     }
-    tempo=double(glutGet(GLUT_ELAPSED_TIME)-value)/1000; //tempo desde ultimo passo s
+    tempo=ms2s(glutGet(GLUT_ELAPSED_TIME)-value); //tempo desde ultimo passo s
     if(estado<3){
-        launch+=glutGet(GLUT_ELAPSED_TIME)-value;//tempo desde lancado
+        launch+=glutGet(GLUT_ELAPSED_TIME)-value;//tempo desde lancado ms
     }else launch=0;
     if(launch>=2000 && launch<4000 && estado==1){
         estado=2;
@@ -333,28 +372,28 @@ void tick(int value){
             }
         }
         if(toque){
-            jogador.cx-=angx;
-            jogador.cy-=angy;
+            reset();
         } 
-        if(!inbound()){ //parece bom
-            alfa=radianos(arena.cx,jogador.cx,arena.cy,jogador.cy);
-            gamma=angulo-alfa;
-            beta=(M_PI-2*abs(gamma))*gamma/abs(gamma)+angulo;
-            if(abs(beta)<M_PI){
-               jogador.cx=arena.cx+(arena.raio-jogador.raio)*cos(beta);
-               jogador.cy=arena.cy-(arena.raio-jogador.raio)*sin(beta);
-            }else{
-                jogador.cx=arena.cx+(arena.raio-jogador.raio)*sin(beta);
-                jogador.cy=arena.cy-(arena.raio-jogador.raio)*cos(beta);
-            }
+        if(!inbound()){ 
+            alfa=rad2pi(angulo);
+            beta=radianos(arena.cx,jogador.cx,arena.cy,jogador.cy);
+            beta=rad2pi(beta);
+            if(abs(alfa-beta)<abs(beta-alfa)){
+                gamma=alfa-beta;
+            }else gamma=beta-alfa;
+            gamma=(M_PI-2*abs(gamma));
+            if(alfa>beta){
+                theta=beta-gamma;
+            }else theta=beta+gamma;
+            jogador.cx=arena.cx+(arena.raio-jogador.raio)*sin(theta);
+            jogador.cy=arena.cy+(arena.raio-jogador.raio)*cos(theta);
             for (auto i:voadores){
                 if(contato(jogador,i)){
                     toque=true;
                 }
             }
             if(toque){
-                jogador.cx=arena.cx+(arena.raio-jogador.raio)*cos(alfa);
-                jogador.cy=arena.cy+(arena.raio-jogador.raio)*sin(alfa); 
+                reset();
             }
         }
         for(auto i=tiros.begin();i!=tiros.end();){// posicao dos tiros
@@ -365,7 +404,7 @@ void tick(int value){
             }else i++;
         } 
         for(auto i=bombas.begin();i!=bombas.end();){// posicao dos tiros
-            temp=double(glutGet(GLUT_ELAPSED_TIME)-(*i).start)/4000;
+            temp=ms2s(glutGet(GLUT_ELAPSED_TIME)-(*i).start)/4;
             (*i).shell.cx+=v*multiplicador*tempo*sin((*i).angulo);
             (*i).shell.cy+=v*multiplicador*tempo*cos((*i).angulo);
             (*i).shell.raio=double(jogador.raio*0.5*(1-temp/2));
@@ -378,7 +417,7 @@ void tick(int value){
         }
         helice=helice+10;
         if(estado==2){
-            jogador.raio=raio_o*launch/2000;
+            jogador.raio=raio_o*ms2s(launch)/2;
         }
         if(estado<3){
             v+=tempo*a;
@@ -426,8 +465,8 @@ void drawJogador(){
     glPushMatrix();
     //transformado
     glTranslated(jogador.cx,jogador.cy,0);
-    glRotated(-angulo*180/M_PI,0,0,1);
-    glScaled(0.5,1,1);
+    glRotated(-rad2graus(angulo),0,0,1);
+    glScaled(0.33,1,1);
     glTranslated(-jogador.cx,-jogador.cy,0);
     retan_temp.altura=jogador.raio/3;
     retan_temp.lado=jogador.raio*2/5;  
@@ -465,7 +504,7 @@ void drawJogador(){
     angx=jogador.raio*0.5*sqrt(2)/2;
     angy=angx;
     glTranslated(2*jogador.raio,0,0);
-    glRotated(helice*180/M_PI,0,0,1);
+    glRotated(helice,0,0,1);
     glBegin(GL_POLYGON);{
         glVertex2d(0,0);
         glVertex2d(angx,angy);
@@ -474,9 +513,9 @@ void drawJogador(){
         glVertex2d(-angx,-angy);
     }
     glEnd();
-    glRotated(-helice*180/M_PI,0,0,1);
+    glRotated(-helice,0,0,1);
     glTranslated(-4*jogador.raio,0,0);
-    glRotated(helice*180/M_PI,0,0,1);
+    glRotated(helice,0,0,1);
     glBegin(GL_POLYGON);{
         glVertex2d(0,0);
         glVertex2d(angx,angy);
@@ -485,12 +524,12 @@ void drawJogador(){
         glVertex2d(-angx,-angy);
     }
     glEnd();
-    glRotated(-helice*180/M_PI,0,0,1);
+    glRotated(-helice,0,0,1);
     glTranslated(2*jogador.raio,0,0);
     //canhao consertar
     cor("red");
     glTranslated(0,jogador.raio,0);
-    glRotated(-angulo_canhao*180/M_PI,0,0,1);
+    glRotated(-rad2graus(angulo_canhao),0,0,1);
     glBegin(GL_POLYGON);{
         glVertex2d(+jogador.raio/5,0);
         glVertex2d(-jogador.raio/5,0);
@@ -498,11 +537,11 @@ void drawJogador(){
         glVertex2d(+jogador.raio/5,jogador.raio/2);
     }
     glEnd();
-    glRotated(angulo_canhao*180/M_PI,0,0,1);
+    glRotated(rad2graus(angulo_canhao),0,0,1);
     glTranslated(0,-jogador.raio,0);
     //desfazer transf
-    glScaled(2,1,1);
-    glRotated(angulo*180/M_PI,0,0,1);
+    glScaled(3,1,1);
+    glRotated(rad2graus(angulo),0,0,1);
     glTranslated(-jogador.cx,-jogador.cy,0);
     glPopMatrix();
 }
@@ -531,20 +570,7 @@ void display(){
 
 void keyPress(unsigned char key, int x ,int y){
     if(key=='r'){
-        jogador.cx=linha.x1;
-        jogador.cy=linha.y1;
-        angulo=angulo_o;
-        estado=0;
-        v=0;
-        a=0;
-        helice=0;
-        start=0;
-        launch=0;
-        multiplicador=1;
-        jogador.raio=raio_o;
-        tiros.clear();
-        glutPostRedisplay();
-
+        reset();
     }else if(key=='u' && estado==0){
         estado=1;
         delay[0]=8;
@@ -564,16 +590,22 @@ void keyPress(unsigned char key, int x ,int y){
     }
     if(key=='a' && estado>2){
         angulo-=0.1*M_PI;
+        if(angulo<-M_PI){
+            angulo+=2*M_PI;
+        }
     }
     if(key=='d' && estado>2){
         angulo+=0.1*M_PI;
+        if(angulo>M_PI){
+            angulo-=2*M_PI;
+        }
     }
     if(key=='+' && estado>2){
-        multiplicador+=0.5;
+        multiplicador+=0.2;
     }
     if(key=='-' && estado>2){
-        if(multiplicador>=0.5){
-            multiplicador-=0.5;
+        if(multiplicador>=0.2){
+            multiplicador-=0.2;
         }else multiplicador=0;
         
     }
