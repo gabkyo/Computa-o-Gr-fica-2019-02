@@ -49,6 +49,7 @@ struct Nave{
     int helice=0;
     int estado=0; // parado,pista,aumenta,voando,parado
     double angulo;
+    double angulo_canhao;
     double angulo_o;
     double raio_o;
 }jogador;
@@ -109,6 +110,33 @@ const int tock=50;
 int start,delay[2],launch;
 bool ataque[2]={true,true};
 
+
+////////////SMALL functions////////////
+void ErroEstrutura()
+{
+    cout << "XML Vazio ou Estrutura de XML errada." << endl;
+    return;
+}
+
+void ErroIO()
+{
+    cout << "Arquivo nao encontrado" << endl;
+    return;
+}
+
+void cor(string color){
+    if(color=="blue"){
+        glColor3d(0.0,0.0,1.0);
+    }else if(color=="orange"){
+        glColor3d(1.0,0.5,0.0);
+    }else if(color=="red"){
+        glColor3d(1.0,0.0,0.0);
+    }else if(color=="green"){
+        glColor3d(0.0,1.0,0.0);
+    }else if(color=="yellow"){
+        glColor3d(1.0,1.0,0.0);
+    }else glColor3d(0.0,0.0,0.0);
+}
 ////////////draw functions////////////
 void init(){
     glClearColor(1, 1, 1, 1);
@@ -156,7 +184,7 @@ void drawNave(Nave nave){
     glPushMatrix();
     //transformado
     glTranslated(nave.hitbox.cx,nave.hitbox.cy,0);
-    glRotated(-rad2graus(angulo),0,0,1);
+    glRotated(-rad2graus(nave.angulo),0,0,1);
     glScaled(0.33,1,1);
     glTranslated(-nave.hitbox.cx,-nave.hitbox.cy,0);
     retan_temp.altura=nave.hitbox.raio/3;
@@ -232,7 +260,8 @@ void drawNave(Nave nave){
     glTranslated(0,-nave.hitbox.raio,0);
     //desfazer transf
     glScaled(3,1,1);
-    glRotated(rad2graus(angulo),0,0,1);
+    glRotated(rad2graus(nave.angulo),0,0,1);
     glTranslated(-nave.hitbox.cx,-nave.hitbox.cy,0);
     glPopMatrix();
 }
+////////////read functions////////////
