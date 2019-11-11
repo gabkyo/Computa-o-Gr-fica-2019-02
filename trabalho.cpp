@@ -102,6 +102,7 @@ double rad2pi(double a){ //de 0 a 2pi
     return a;
 }
 
+
 ////////////global vars////////////
 vector<Nave> bases;
 vector<Nave> inimigos;
@@ -111,9 +112,9 @@ vector<Bomba> bombas;
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
 int segmentos=50;
-double multiplicador=1,freqTiro;
+double multiplicador=1,freqTiro; 
 const int tock=50, delay_tiro=400;
-int start,launch,score_total,score_atual=0;
+int start,launch,score_total,score_atual=0,a_tiro=0;
 bool tiro_pronto[2];
 
 ////////////SMALL functions////////////
@@ -151,6 +152,14 @@ bool inbound(){
     return distancia(jogador.hitbox,arena)<=double(arena.raio-jogador.hitbox.raio);
 }
 
+bool inbound(Circulo *a){
+    return distancia(*a,arena)<=double(arena.raio-a->raio);
+}
+
+bool inbound(Nave *a){
+    return distancia(a->hitbox,arena)<=double(arena.raio-a->hitbox.raio);
+}
+
 bool contato(Circulo a, Circulo b){
     return distancia(a.cx,a.cy,b.cx,b.cy)<=double(a.raio+b.raio);
 }
@@ -180,6 +189,7 @@ void reset(){
     start=0;
     launch=0;
     multiplicador=1;
+    a_tiro=1;
     for (auto i: inimigos){
         reset_nave(&i);
     }
@@ -515,32 +525,158 @@ bool teste(string arquivo)
     return true;
 }
 ////////////timed functions////////////
-
-void recarga(int param){
-    
+void recarga_tiro(int param){
+    tiro_pronto[0]=true;
 }
 
-void tick(int param){
+void recarga_bomba(int param){
+    tiro_pronto[1]=true;
+}
 
+void recarga_inimiga(int param){
+    for(auto i:inimigos){
+        if(i.enabled){
+            addTiroInimigo(&i);
+        }
+    }
+    glutTimerFunc(int(1000*freqTiro),recarga_inimiga,0);
+}
+
+void teleport(Nave *a){
+    double alfa,beta,theta,gamma;
+    alfa=rad2pi(a->angulo);
+    beta=radianos(arena.cx,a->hitbox.cx,arena.cy,a->hitbox.cy);
+    beta=rad2pi(beta);
+    if(abs(alfa-beta)<abs(beta-alfa)){
+        gamma=alfa-beta;
+    }else gamma=beta-alfa;
+    gamma=(M_PI-2*abs(gamma));
+    if(alfa>beta){
+        theta=beta-gamma;
+    }else theta=beta+gamma;
+    a->hitbox.cx=arena.cx+(arena.raio-a->hitbox.raio)*sin(theta);
+    a->hitbox.cy=arena.cy+(arena.raio-a->hitbox.raio)*cos(theta);
+}
+
+void tick(int antigo){
+    bool morto=false;
+    int atual=glutGet(GLUT_ELAPSED_TIME);
+    double dif=ms2s(atual-antigo),inicio=ms2s(atual-start);
+    if(jogador.enabled && !jogador.estado){
+        dif=atual-antigo;
+        jogador.hitbox.cx+=int((jogador.v*dif+jogador.a*pow(dif,2)/2)*sin(jogador.angulo));
+        jogador.hitbox.cy+=int((jogador.v*dif+jogador.a*pow(dif,2)/2)*cos(jogador.angulo));
+        jogador.v+=jogador.a*dif;
+        if(jogador.estado==1){
+            if(inicio>2){
+                jogador.estado=2;
+            }
+        }
+        if(jogador.estado==2){
+            if(inicio<4){
+                jogador.hitbox.raio=jogador.raio_o*(inicio/2);
+            }else{
+                jogador.estado=3;
+                jogador.a=0;
+                jogador.hitbox.raio=jogador.raio_o*2;
+            }
+        }
+        if(!inbound()){
+            teleport(&jogador);
+        } 
+
+        for (auto i=tiros_inimigos.begin();i!=tiros_inimigos.end();++i){
+            if(contato(i->tiro,jogador.hitbox)){
+                morto=true;
+                tiros_inimigos.erase(i);
+            }
+            if(!inbound(&(*i))){
+                tiros_inimigos.erase(i);
+            }
+        }
+        if(morto){
+            jogador.enabled=false;
+        }else{
+            for(auto i=tiros.begin();i!=tiros.end();++i){
+                for(auto j=inimigos.begin();j!=inimigos.end();++j){
+                    if(j->enabled && !inbound(&(*j))){
+                        teleport(&(*j));
+                    }
+                    if(j->enabled && contato(i->tiro,j->hitbox)){
+                        j->enabled=false;
+                        tiros.erase(i);
+                    }
+                }
+                if(!inbound(&(i->tiro)){
+                    tiros.erase(i);
+                }
+            }
+            for(auto i=bombas.begin();i!=bombas.end();++i){
+                for(auto j=bases.begin();j!=bases.end();++j){
+                    if(j->enabled && !inbound(&(*j))){
+                        teleport(&(*j));
+                    }
+                    if(j->enabled && contato(i->shell,j->hitbox)){
+                        j->enabled=false;
+                        bombas.erase(i);
+                    }
+                }
+                if(!inbound(&(i->shell)) || ms2s(atual-i->start)>2){
+                    bombas.erase(i);
+                }
+            }
+        }
+        
+    }
+    glutTimerFunc(tock,tick,0);
+    glutPostRedisplay();
 }
 
 void display(){
+    string str=string("SCORE: ")+to_string(score_atual)+string(" MAX: ")+to_string(score_total);
+    int pos;
+    unsigned const char *c=(unsigned char*)str.c_str();
     glClear(GL_COLOR_BUFFER_BIT);
     drawCircle(arena);
+    cor("black");
+    glRasterPos2i(arena.cx-arena.raio,arena.cy+arena.raio);
+    glutBitmapString(GLUT_BITMAP_HELVETICA_10,c);
     for(auto i:bases){
-        drawCircle(i.hitbox);
+        if(i.enabled){
+            drawCircle(i.hitbox);
+        }
     }
     drawLine(linha);
     for(auto i:inimigos){
-        drawNave(i);
+        if(i.enabled){
+            drawNave(i);
+        }
     }
-    for(auto i:tiros){
-        drawCircle(i.tiro);
+    if(jogador.enabled){
+        for(auto i:bombas){
+            drawCircle(i.shell);
+        }
+        for(auto i:tiros){
+            drawCircle(i.tiro);
+        }
+        for(auto i:tiros_inimigos){
+            drawCircle(i.tiro);
+        }
     }
-    for(auto i:bombas){
-        drawCircle(i.shell);
+    if(jogador.enabled){
+        drawNave(jogador);
+        if(score_atual==score_total){
+            pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,"WIN")/2+arena.cx;
+            cor("green");
+            glRasterPos2i(pos,arena.cy);
+            glutBitmapString(GLUT_BITMAP_HELVETICA_18,"WIN");
+        }
+    }else{
+        pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,"LOSE")/2+arena.cx;
+        cor("red");
+        glRasterPos2i(pos,arena.cy);
+        glutBitmapString(GLUT_BITMAP_HELVETICA_18,"LOSE");
     }
-    drawNave(jogador);
     glFlush();
     glutSwapBuffers(); 
 }
@@ -549,13 +685,13 @@ void keyPress(unsigned char key, int x ,int y){
     if(key=='r'){
         reset();
     }else if(key=='u' && jogador.estado==0){
-        jogador.estado=1;
         jogador.a=dist_linha()/8;
         jogador.angulo_o=rad_linha(); //radianos
         jogador.angulo=jogador.angulo_o;
         jogador.angulo_canhao=0;
         launch=0;
         jogador.v=0;
+        jogador.estado=1;
         start=glutGet(GLUT_ELAPSED_TIME);
         glutTimerFunc(tock,tick,start);
         glutPostRedisplay();
@@ -588,15 +724,29 @@ void keyUp(unsigned char key, int x ,int y){
 
 void mouse(int button, int state,int x,int y){
     if((button==GLUT_LEFT_BUTTON) && (state==GLUT_DOWN) && jogador.estado>2){
+        if(tiro_pronto[0]){
+            addTiro();
+            tiro_pronto[0]=false;
+            glutTimerFunc(delay_tiro-a_tiro,recarga_tiro,0);
+        }else{
+            if(delay_tiro-a_tiro>100){
+                a_tiro++;
+            }
+        }
         //tiro
         
     }else if((button==GLUT_LEFT_BUTTON) && (state==GLUT_UP) && jogador.estado>2){
+        
+        a_tiro=0;
         //pare de atirar
     }
     if((button==GLUT_RIGHT_BUTTON) && (state==GLUT_DOWN) && jogador.estado>2){
+        if(tiro_pronto[1]){
+            addBomba();
+            tiro_pronto[1]=false;
+            glutTimerFunc(delay_tiro*2,recarga_bomba,0);
+        }
         //bomba
-    }else if((button==GLUT_RIGHT_BUTTON) && (state==GLUT_UP) && jogador.estado>2){
-        //pare bombas
     }
 }
 
