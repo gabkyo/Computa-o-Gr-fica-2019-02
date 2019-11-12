@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include "tinyxml2.h"
 #include "tinyxml2.cpp"
@@ -116,6 +117,7 @@ double multiplicador=1,freqTiro;
 const int tock=50, delay_tiro=400;
 int start,launch,score_total,score_atual=0,a_tiro=0;
 bool tiro_pronto[2];
+const unsigned char lose[]="LOSE", win[]="WIN";
 
 ////////////SMALL functions////////////
 void ErroEstrutura()
@@ -567,10 +569,11 @@ void tick(int antigo){
             jogador.helice=0;
         }else jogador.helice+=10;
         jogador.v+=jogador.a*dif;
-        temp=jogador.v*dif+jogador.a*pow(dif,2)/2;
-        jogador.hitbox.cx=int(jogador.hitbox.cx+temp*sin(jogador.angulo));
-        jogador.hitbox.cy=int(jogador.hitbox.cy+temp*cos(jogador.angulo));
-        cout<<jogador.hitbox.cx<<" "<<jogador.hitbox.cy<<endl;
+        if(jogador.estado==3){
+            temp=jogador.v*multiplicador*jogador.vel*dif+jogador.a*pow(dif,2)/2;
+        }else temp=jogador.v*dif+jogador.a*pow(dif,2)/2;
+        jogador.hitbox.cx=jogador.hitbox.cx+temp*sin(jogador.angulo);
+        jogador.hitbox.cy=jogador.hitbox.cy+temp*cos(jogador.angulo);
         if(jogador.estado==1){
             if(inicio>2){
                 jogador.estado=2;
@@ -591,8 +594,9 @@ void tick(int antigo){
         }
         if(jogador.estado==3){
             for(auto i:inimigos){
-                i.hitbox.cx+=(jogador.v*dif)*sin(i.angulo);
-                i.hitbox.cy+=(jogador.v*dif)*cos(i.angulo);
+                temp=jogador.v*dif*multiplicador;
+                i.hitbox.cx+=temp*sin(i.angulo);
+                i.hitbox.cy+=temp*cos(i.angulo);
                 if(!inbound(&i)){
                     teleport(&i);
                 }
@@ -602,22 +606,28 @@ void tick(int antigo){
             }
         } 
         for (auto i=tiros_inimigos.begin();i!=tiros_inimigos.end();++i){
-            i->tiro.cx+=((jogador.v*dif)*sin(i->angulo));
-            i->tiro.cy+=((jogador.v*dif)*cos(i->angulo));
+            temp=jogador.v*jogador.veltiro*dif*multiplicador;
+            i->tiro.cx+=(temp*sin(i->angulo));
+            i->tiro.cy+=(temp*cos(i->angulo));
             if(contato(i->tiro,jogador.hitbox)){
                 morto=true;
-                tiros_inimigos.erase(i);
-            }
-            if(!inbound(&(i->tiro))){
-                tiros_inimigos.erase(i);
+                i=tiros_inimigos.erase(i);
+                i--;
+            }else if(!inbound(&(i->tiro))){
+                i=tiros_inimigos.erase(i);
+                i--;
             }
         }
         if(morto){
             jogador.enabled=false;
         }else{
             for(auto i=tiros.begin();i!=tiros.end();++i){
-                i->tiro.cx+=((jogador.v*dif)*sin(i->angulo));
-                i->tiro.cy+=((jogador.v*dif)*cos(i->angulo));
+                temp=jogador.v*jogador.veltiro*dif*multiplicador;
+                i->tiro.cx+=(temp*sin(i->angulo));
+                i->tiro.cy+=(temp*cos(i->angulo));
+                if(!inbound(&(i->tiro))){
+                    i=tiros.erase(i);
+                }
                 for(auto j=inimigos.begin();j!=inimigos.end();++j){
                     if(i==tiros.begin()){
                         if(j->helice==360){
@@ -629,30 +639,31 @@ void tick(int antigo){
                     }
                     if(j->enabled && contato(i->tiro,j->hitbox)){
                         j->enabled=false;
-                        tiros.erase(i);
+                        i=tiros.erase(i);
                     }
                 }
-                if(!inbound(&(i->tiro))){
-                    tiros.erase(i);
-                }
+                
             }
             for(auto i=bombas.begin();i!=bombas.end();++i){
-                i->shell.cy+=((jogador.v*dif)*cos(i->angulo));
-                i->shell.cx+=((jogador.v*dif)*sin(i->angulo));
+                temp=jogador.v*dif*multiplicador;
+                i->shell.cy+=(temp*cos(i->angulo));
+                i->shell.cx+=(temp*sin(i->angulo));
+                if(!inbound(&(i->shell)) || ms2s(atual-i->start)>2){
+                    i=bombas.erase(i);
+                }else{
+                    i->shell.raio=(jogador.hitbox.raio/5)*(2-ms2s(atual-i->start))/2;
+                }
                 for(auto j=bases.begin();j!=bases.end();++j){
                     if(j->enabled && !inbound(&(*j))){
                         teleport(&(*j));
                     }
                     if(j->enabled && contato(i->shell,j->hitbox)){
                         j->enabled=false;
-                        bombas.erase(i);
+                        score_atual++;
+                        i=bombas.erase(i);
                     }
                 }
-                if(!inbound(&(i->shell)) || ms2s(atual-i->start)>2){
-                    bombas.erase(i);
-                }else{
-                    i->shell.raio=(jogador.hitbox.raio/5)*(2-ms2s(atual-i->start))/2;
-                }
+                
             }
         }
         glutTimerFunc(tock,tick,atual);
@@ -662,14 +673,12 @@ void tick(int antigo){
 }
 
 void display(){
-    string str=string("SCORE: ")+to_string(score_atual)+string(" MAX: ")+to_string(score_total);
+    ostringstream oss;
+    oss<<"SCORE: "<<score_atual<<" MAX: "<<score_total;
+    string str=oss.str();
     int pos;
-    unsigned const char *c=(unsigned char*)str.c_str();
     glClear(GL_COLOR_BUFFER_BIT);
     drawCircle(arena);
-    cor("black");
-    glRasterPos2i(arena.cx-arena.raio,arena.cy+arena.raio);
-    glutBitmapString(GLUT_BITMAP_HELVETICA_10,c);
     for(auto i:bases){
         if(i.enabled){
             drawCircle(i.hitbox);
@@ -692,17 +701,21 @@ void display(){
             drawCircle(i.tiro);
         }
     }
+    cor("black");
+    glRasterPos2i(arena.cx-0.9*arena.raio,arena.cy+0.9*arena.raio);
+    for(auto i:str){
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10,i);
+    }
     if(jogador.enabled){
         drawNave(&jogador);
         if(score_atual==score_total){
-            const unsigned char win[]="WIN";
+            
             pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,win)/2+arena.cx;
             cor("green");
             glRasterPos2i(pos,arena.cy);
             glutBitmapString(GLUT_BITMAP_HELVETICA_18,win);
         }
     }else{
-        const unsigned char lose[]="LOSE";
         pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,lose)/2+arena.cx;
         cor("red");
         glRasterPos2i(pos,arena.cy);
@@ -726,13 +739,13 @@ void keyPress(unsigned char key, int x ,int y){
         tick(start);
         glutPostRedisplay();
     }
-    if(key=='a' && jogador.estado>2){
+    if(key=='d' && jogador.estado>2){
         jogador.angulo-=0.1*M_PI;
         if(jogador.angulo<-M_PI){
             jogador.angulo+=2*M_PI;
         }
     }
-    if(key=='d' && jogador.estado>2){
+    if(key=='a' && jogador.estado>2){
         jogador.angulo+=0.1*M_PI;
         if(jogador.angulo>M_PI){
             jogador.angulo-=2*M_PI;
