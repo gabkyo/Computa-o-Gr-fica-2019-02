@@ -89,7 +89,7 @@ double graus2rad(double graus){
 }
 
 double ms2s(int ms){
-    return double(ms)/1000.0;
+    return ((double)ms)/1000.0;
 }
 
 double rad2pi(double a){ //de 0 a 2pi
@@ -169,7 +169,7 @@ void init(){
     glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_PROJECTION);
     glMatrixMode(GL_MODELVIEW);
-    gluOrtho2D(arena.cx-arena.raio, arena.cx+arena.raio,arena.cy-arena.raio, arena.cy+arena.raio); //-y
+    gluOrtho2D(arena.cx-arena.raio, arena.cx+arena.raio,arena.cy+arena.raio, arena.cy-arena.raio); //-y
 }
 
 void reset_nave(Nave *nave){
@@ -179,7 +179,7 @@ void reset_nave(Nave *nave){
     nave->v=0;
     nave->angulo_canhao=0;
     nave->estado=0;
-    nave->a=0;
+    nave->a=dist_linha()/8;
     nave->helice=0;
     nave->enabled=true;
     nave->hitbox.raio=nave->raio_o;
@@ -198,7 +198,6 @@ void reset(){
     }
     reset_nave(&jogador);
     tiros.clear();
-    inimigos.clear();
     bombas.clear();
     score_atual=0;
     glutPostRedisplay();
@@ -238,50 +237,50 @@ void drawRetangle(Retangulo r){
     glEnd();
 }
 
-void drawNave(Nave nave){
+void drawNave(Nave *nave){
     double theta,angx,angy;
     glPushMatrix();
     //transformado
-    glTranslated(nave.hitbox.cx,nave.hitbox.cy,0);
-    glRotated(-rad2graus(nave.angulo),0,0,1);
+    glTranslated(nave->hitbox.cx,nave->hitbox.cy,0);
+    glRotated(-rad2graus(nave->angulo),0,0,1);
     glScaled(0.33,1,1);
-    glTranslated(-nave.hitbox.cx,-nave.hitbox.cy,0);
-    retan_temp.altura=nave.hitbox.raio/3;
-    retan_temp.lado=nave.hitbox.raio*2/5;  
-    drawCircle(nave.hitbox);
+    glTranslated(-nave->hitbox.cx,-nave->hitbox.cy,0);
+    retan_temp.altura=nave->hitbox.raio/3;
+    retan_temp.lado=nave->hitbox.raio*2/5;  
+    drawCircle(nave->hitbox);
     circulo_temp.color="black";
-    circulo_temp.raio=nave.hitbox.raio*0.4;
-    circulo_temp.cx=nave.hitbox.cx;
-    circulo_temp.cy=nave.hitbox.cy+circulo_temp.raio;
+    circulo_temp.raio=nave->hitbox.raio*0.4;
+    circulo_temp.cx=nave->hitbox.cx;
+    circulo_temp.cy=nave->hitbox.cy+circulo_temp.raio;
     drawCircle(circulo_temp);
-    glTranslated(nave.hitbox.cx,nave.hitbox.cy,0);
+    glTranslated(nave->hitbox.cx,nave->hitbox.cy,0);
     glBegin(GL_POLYGON);{//asa esquerda
-        glVertex2d(-nave.hitbox.raio,-nave.hitbox.raio/3);
-        glVertex2d(-nave.hitbox.raio,+nave.hitbox.raio/3);
-        glVertex2d(-3*nave.hitbox.raio,0);
-        glVertex2d(-3*nave.hitbox.raio,-2*nave.hitbox.raio/3);
+        glVertex2d(-nave->hitbox.raio,-nave->hitbox.raio/3);
+        glVertex2d(-nave->hitbox.raio,+nave->hitbox.raio/3);
+        glVertex2d(-3*nave->hitbox.raio,0);
+        glVertex2d(-3*nave->hitbox.raio,-2*nave->hitbox.raio/3);
     }
     glEnd();
     glBegin(GL_POLYGON);{//asa direita
-        glVertex2d(+nave.hitbox.raio,-nave.hitbox.raio/3);
-        glVertex2d(+nave.hitbox.raio,+nave.hitbox.raio/3);
-        glVertex2d(+3*nave.hitbox.raio,0);
-        glVertex2d(+3*nave.hitbox.raio,-2*nave.hitbox.raio/3);
+        glVertex2d(+nave->hitbox.raio,-nave->hitbox.raio/3);
+        glVertex2d(+nave->hitbox.raio,+nave->hitbox.raio/3);
+        glVertex2d(+3*nave->hitbox.raio,0);
+        glVertex2d(+3*nave->hitbox.raio,-2*nave->hitbox.raio/3);
     }
     glEnd();
     glBegin(GL_POLYGON);{//cauda
-        glVertex2d(+nave.hitbox.raio/5,-nave.hitbox.raio);
-        glVertex2d(-nave.hitbox.raio/5,-nave.hitbox.raio);
-        glVertex2d(-nave.hitbox.raio/5,-nave.hitbox.raio/6);
-        glVertex2d(+nave.hitbox.raio/5,-nave.hitbox.raio/6);
+        glVertex2d(+nave->hitbox.raio/5,-nave->hitbox.raio);
+        glVertex2d(-nave->hitbox.raio/5,-nave->hitbox.raio);
+        glVertex2d(-nave->hitbox.raio/5,-nave->hitbox.raio/6);
+        glVertex2d(+nave->hitbox.raio/5,-nave->hitbox.raio/6);
     }
     glEnd();
     //helices
     cor("yellow");
-    angx=nave.hitbox.raio*0.5*sqrt(2)/2;
+    angx=nave->hitbox.raio*0.5*sqrt(2)/2;
     angy=angx;
-    glTranslated(2*nave.hitbox.raio,0,0);
-    glRotated(nave.helice,0,0,1);
+    glTranslated(2*nave->hitbox.raio,0,0);
+    glRotated(nave->helice,0,0,1);
     glBegin(GL_POLYGON);{
         glVertex2d(0,0);
         glVertex2d(angx,angy);
@@ -290,9 +289,9 @@ void drawNave(Nave nave){
         glVertex2d(-angx,-angy);
     }
     glEnd();
-    glRotated(-nave.helice,0,0,1);
-    glTranslated(-4*nave.hitbox.raio,0,0);
-    glRotated(nave.helice,0,0,1);
+    glRotated(-nave->helice,0,0,1);
+    glTranslated(-4*nave->hitbox.raio,0,0);
+    glRotated(nave->helice,0,0,1);
     glBegin(GL_POLYGON);{
         glVertex2d(0,0);
         glVertex2d(angx,angy);
@@ -301,25 +300,25 @@ void drawNave(Nave nave){
         glVertex2d(-angx,-angy);
     }
     glEnd();
-    glRotated(-nave.helice,0,0,1);
-    glTranslated(2*nave.hitbox.raio,0,0);
+    glRotated(-nave->helice,0,0,1);
+    glTranslated(2*nave->hitbox.raio,0,0);
     //canhao consertar
     cor("red");
-    glTranslated(0,nave.hitbox.raio,0);
-    glRotated(-rad2graus(nave.angulo_canhao),0,0,1);
+    glTranslated(0,nave->hitbox.raio,0);
+    glRotated(-rad2graus(nave->angulo_canhao),0,0,1);
     glBegin(GL_POLYGON);{
-        glVertex2d(+nave.hitbox.raio/5,0);
-        glVertex2d(-nave.hitbox.raio/5,0);
-        glVertex2d(-nave.hitbox.raio/5,nave.hitbox.raio/2);
-        glVertex2d(+nave.hitbox.raio/5,nave.hitbox.raio/2);
+        glVertex2d(+nave->hitbox.raio/5,0);
+        glVertex2d(-nave->hitbox.raio/5,0);
+        glVertex2d(-nave->hitbox.raio/5,nave->hitbox.raio/2);
+        glVertex2d(+nave->hitbox.raio/5,nave->hitbox.raio/2);
     }
     glEnd();
-    glRotated(rad2graus(nave.angulo_canhao),0,0,1);
-    glTranslated(0,-nave.hitbox.raio,0);
+    glRotated(rad2graus(nave->angulo_canhao),0,0,1);
+    glTranslated(0,-nave->hitbox.raio,0);
     //desfazer transf
     glScaled(3,1,1);
-    glRotated(rad2graus(nave.angulo),0,0,1);
-    glTranslated(-nave.hitbox.cx,-nave.hitbox.cy,0);
+    glRotated(rad2graus(nave->angulo),0,0,1);
+    glTranslated(-nave->hitbox.cx,-nave->hitbox.cy,0);
     glPopMatrix();
 }
 
@@ -359,7 +358,7 @@ bool teste(string arquivo)
     double i_vel,i_veltiro;
     string svg;
     svg=arquivo;
-    if(arquivo[0]=='/' && svg.find("home")==string::npos){
+    if(arquivo[0]=='/' && svg.find("home")==string::npos){ 
         svg="."+arquivo;
     }
     else if(arquivo[0]=='~'){
@@ -436,6 +435,7 @@ bool teste(string arquivo)
     }
     doc.Clear();
     c=svg.c_str();
+    cout<<c<<endl;
     freopen(c,"r",i);
     if (doc.LoadFile(i) != XML_SUCCESS)
     {
@@ -499,7 +499,7 @@ bool teste(string arquivo)
             inimigos.push_back(nave_temp);
         }else if(circulo_temp.color=="orange"){
             nave_temp.hitbox=circulo_temp;
-            nave_temp.angulo_o=graus2rad(double(rand()%361));
+            nave_temp.angulo_o=graus2rad(double(rand()%360));
             nave_temp.x0=circulo_temp.cx;
             nave_temp.y0=circulo_temp.cy;
             nave_temp.raio_o=circulo_temp.raio;
@@ -561,12 +561,16 @@ void teleport(Nave *a){
 void tick(int antigo){
     bool morto=false;
     int atual=glutGet(GLUT_ELAPSED_TIME);
-    double dif=ms2s(atual-antigo),inicio=ms2s(atual-start);
-    if(jogador.enabled && !jogador.estado){
-        dif=atual-antigo;
-        jogador.hitbox.cx+=int((jogador.v*dif+jogador.a*pow(dif,2)/2)*sin(jogador.angulo));
-        jogador.hitbox.cy+=int((jogador.v*dif+jogador.a*pow(dif,2)/2)*cos(jogador.angulo));
+    double dif=ms2s(atual-antigo),inicio=ms2s(atual-start),temp;
+    if(jogador.enabled && jogador.estado){
+        if(jogador.helice==360){
+            jogador.helice=0;
+        }else jogador.helice+=10;
         jogador.v+=jogador.a*dif;
+        temp=jogador.v*dif+jogador.a*pow(dif,2)/2;
+        jogador.hitbox.cx=int(jogador.hitbox.cx+temp*sin(jogador.angulo));
+        jogador.hitbox.cy=int(jogador.hitbox.cy+temp*cos(jogador.angulo));
+        cout<<jogador.hitbox.cx<<" "<<jogador.hitbox.cy<<endl;
         if(jogador.estado==1){
             if(inicio>2){
                 jogador.estado=2;
@@ -577,20 +581,34 @@ void tick(int antigo){
                 jogador.hitbox.raio=jogador.raio_o*(inicio/2);
             }else{
                 jogador.estado=3;
+                jogador.v=jogador.a*4*jogador.vel;
                 jogador.a=0;
                 jogador.hitbox.raio=jogador.raio_o*2;
             }
         }
         if(!inbound()){
             teleport(&jogador);
+        }
+        if(jogador.estado==3){
+            for(auto i:inimigos){
+                i.hitbox.cx+=(jogador.v*dif)*sin(i.angulo);
+                i.hitbox.cy+=(jogador.v*dif)*cos(i.angulo);
+                if(!inbound(&i)){
+                    teleport(&i);
+                }
+                if(contato(i.hitbox,jogador.hitbox)){
+                    morto=true;
+                }
+            }
         } 
-
         for (auto i=tiros_inimigos.begin();i!=tiros_inimigos.end();++i){
+            i->tiro.cx+=((jogador.v*dif)*sin(i->angulo));
+            i->tiro.cy+=((jogador.v*dif)*cos(i->angulo));
             if(contato(i->tiro,jogador.hitbox)){
                 morto=true;
                 tiros_inimigos.erase(i);
             }
-            if(!inbound(&(*i))){
+            if(!inbound(&(i->tiro))){
                 tiros_inimigos.erase(i);
             }
         }
@@ -598,7 +616,14 @@ void tick(int antigo){
             jogador.enabled=false;
         }else{
             for(auto i=tiros.begin();i!=tiros.end();++i){
+                i->tiro.cx+=((jogador.v*dif)*sin(i->angulo));
+                i->tiro.cy+=((jogador.v*dif)*cos(i->angulo));
                 for(auto j=inimigos.begin();j!=inimigos.end();++j){
+                    if(i==tiros.begin()){
+                        if(j->helice==360){
+                            j->helice=0;
+                        }else j->helice+=10;
+                    }
                     if(j->enabled && !inbound(&(*j))){
                         teleport(&(*j));
                     }
@@ -607,11 +632,13 @@ void tick(int antigo){
                         tiros.erase(i);
                     }
                 }
-                if(!inbound(&(i->tiro)){
+                if(!inbound(&(i->tiro))){
                     tiros.erase(i);
                 }
             }
             for(auto i=bombas.begin();i!=bombas.end();++i){
+                i->shell.cy+=((jogador.v*dif)*cos(i->angulo));
+                i->shell.cx+=((jogador.v*dif)*sin(i->angulo));
                 for(auto j=bases.begin();j!=bases.end();++j){
                     if(j->enabled && !inbound(&(*j))){
                         teleport(&(*j));
@@ -623,13 +650,15 @@ void tick(int antigo){
                 }
                 if(!inbound(&(i->shell)) || ms2s(atual-i->start)>2){
                     bombas.erase(i);
+                }else{
+                    i->shell.raio=(jogador.hitbox.raio/5)*(2-ms2s(atual-i->start))/2;
                 }
             }
         }
-        
+        glutTimerFunc(tock,tick,atual);
+        glutPostRedisplay();
     }
-    glutTimerFunc(tock,tick,0);
-    glutPostRedisplay();
+    
 }
 
 void display(){
@@ -649,7 +678,7 @@ void display(){
     drawLine(linha);
     for(auto i:inimigos){
         if(i.enabled){
-            drawNave(i);
+            drawNave(&i);
         }
     }
     if(jogador.enabled){
@@ -664,18 +693,20 @@ void display(){
         }
     }
     if(jogador.enabled){
-        drawNave(jogador);
+        drawNave(&jogador);
         if(score_atual==score_total){
-            pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,"WIN")/2+arena.cx;
+            const unsigned char win[]="WIN";
+            pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,win)/2+arena.cx;
             cor("green");
             glRasterPos2i(pos,arena.cy);
-            glutBitmapString(GLUT_BITMAP_HELVETICA_18,"WIN");
+            glutBitmapString(GLUT_BITMAP_HELVETICA_18,win);
         }
     }else{
-        pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,"LOSE")/2+arena.cx;
+        const unsigned char lose[]="LOSE";
+        pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,lose)/2+arena.cx;
         cor("red");
         glRasterPos2i(pos,arena.cy);
-        glutBitmapString(GLUT_BITMAP_HELVETICA_18,"LOSE");
+        glutBitmapString(GLUT_BITMAP_HELVETICA_18,lose);
     }
     glFlush();
     glutSwapBuffers(); 
@@ -686,14 +717,13 @@ void keyPress(unsigned char key, int x ,int y){
         reset();
     }else if(key=='u' && jogador.estado==0){
         jogador.a=dist_linha()/8;
-        jogador.angulo_o=rad_linha(); //radianos
         jogador.angulo=jogador.angulo_o;
         jogador.angulo_canhao=0;
         launch=0;
         jogador.v=0;
         jogador.estado=1;
         start=glutGet(GLUT_ELAPSED_TIME);
-        glutTimerFunc(tock,tick,start);
+        tick(start);
         glutPostRedisplay();
     }
     if(key=='a' && jogador.estado>2){
@@ -736,7 +766,6 @@ void mouse(int button, int state,int x,int y){
         //tiro
         
     }else if((button==GLUT_LEFT_BUTTON) && (state==GLUT_UP) && jogador.estado>2){
-        
         a_tiro=0;
         //pare de atirar
     }
