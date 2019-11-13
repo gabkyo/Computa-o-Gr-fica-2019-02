@@ -118,6 +118,7 @@ const int tock=50, delay_tiro=400;
 int start,launch,score_total,score_atual=0,a_tiro=0;
 bool tiro_pronto[2];
 const unsigned char lose[]="LOSE", win[]="WIN";
+const string black="black",red="red",yellow="yellow",green="green",blue="blue",orange="orange";
 
 ////////////SMALL functions////////////
 void ErroEstrutura()
@@ -133,15 +134,15 @@ void ErroIO()
 }
 
 void cor(string color){
-    if(color=="blue"){
+    if(color==blue){
         glColor3d(0.0,0.0,1.0);
-    }else if(color=="orange"){
+    }else if(color==orange){
         glColor3d(1.0,0.5,0.0);
-    }else if(color=="red"){
+    }else if(color==red){
         glColor3d(1.0,0.0,0.0);
-    }else if(color=="green"){
+    }else if(color==green){
         glColor3d(0.0,1.0,0.0);
-    }else if(color=="yellow"){
+    }else if(color==yellow){
         glColor3d(1.0,1.0,0.0);
     }else glColor3d(0.0,0.0,0.0);
 }
@@ -154,12 +155,20 @@ bool inbound(){
     return distancia(jogador.hitbox,arena)<=double(arena.raio-jogador.hitbox.raio);
 }
 
-bool inbound(Circulo *a){
-    return distancia(*a,arena)<=double(arena.raio-a->raio);
+bool inbound(Circulo a){
+    return distancia(a,arena)<=double(arena.raio-a.raio);
 }
 
 bool inbound(Nave *a){
     return distancia(a->hitbox,arena)<=double(arena.raio-a->hitbox.raio);
+}
+
+bool inbound(Municao *a){
+    return distancia(a->tiro,arena)<=double(arena.raio-a->tiro.raio);
+}
+
+bool inbound(Bomba *a){
+    return distancia(a->shell,arena)<=double(arena.raio-a->shell.raio);
 }
 
 bool contato(Circulo a, Circulo b){
@@ -192,14 +201,15 @@ void reset(){
     launch=0;
     multiplicador=1;
     a_tiro=1;
-    for (auto i: inimigos){
-        reset_nave(&i);
+    for (auto i=inimigos.begin();i<inimigos.end();++i){
+        reset_nave(&(*i));
     }
-    for (auto i: bases){
-        reset_nave(&i);
+    for (auto i=bases.begin();i<bases.end();++i){
+        reset_nave(&(*i));
     }
     reset_nave(&jogador);
     tiros.clear();
+    tiros_inimigos.clear();
     bombas.clear();
     score_atual=0;
     glutPostRedisplay();
@@ -250,7 +260,7 @@ void drawNave(Nave *nave){
     retan_temp.altura=nave->hitbox.raio/3;
     retan_temp.lado=nave->hitbox.raio*2/5;  
     drawCircle(nave->hitbox);
-    circulo_temp.color="black";
+    circulo_temp.color=black;
     circulo_temp.raio=nave->hitbox.raio*0.4;
     circulo_temp.cx=nave->hitbox.cx;
     circulo_temp.cy=nave->hitbox.cy+circulo_temp.raio;
@@ -278,7 +288,7 @@ void drawNave(Nave *nave){
     }
     glEnd();
     //helices
-    cor("yellow");
+    cor(yellow);
     angx=nave->hitbox.raio*0.5*sqrt(2)/2;
     angy=angx;
     glTranslated(2*nave->hitbox.raio,0,0);
@@ -305,7 +315,7 @@ void drawNave(Nave *nave){
     glRotated(-nave->helice,0,0,1);
     glTranslated(2*nave->hitbox.raio,0,0);
     //canhao consertar
-    cor("red");
+    cor(red);
     glTranslated(0,nave->hitbox.raio,0);
     glRotated(-rad2graus(nave->angulo_canhao),0,0,1);
     glBegin(GL_POLYGON);{
@@ -326,16 +336,16 @@ void drawNave(Nave *nave){
 
 void addTiroInimigo(Nave *a){
     Municao temp;
-    temp.tiro.color="red";
+    temp.tiro.color=red;
     temp.tiro.raio=a->hitbox.raio/5;
     temp.angulo=a->angulo_canhao+a->angulo;
     temp.tiro.cx=a->hitbox.cx+a->hitbox.raio*sin(a->angulo)+a->hitbox.raio*0.5*sin(a->angulo_canhao);
     temp.tiro.cy=a->hitbox.cy+a->hitbox.raio*cos(a->angulo)+a->hitbox.raio*0.5*cos(a->angulo_canhao);
-    tiros.push_back(temp);
+    tiros_inimigos.push_back(temp);
 }
 void addTiro(){
     Municao temp;
-    temp.tiro.color="yellow";
+    temp.tiro.color=yellow;
     temp.tiro.raio=jogador.hitbox.raio/5;
     temp.angulo=jogador.angulo_canhao+jogador.angulo;
     temp.tiro.cx=jogador.hitbox.cx+jogador.hitbox.raio*sin(jogador.angulo)+jogador.hitbox.raio*0.5*sin(jogador.angulo_canhao);
@@ -344,9 +354,9 @@ void addTiro(){
 }
 void addBomba(){
     Bomba temp;
-    temp.shell.color="black";
+    temp.shell.color=black;
     temp.shell.raio=jogador.hitbox.raio/5;
-    temp.angulo=jogador.angulo_canhao+jogador.angulo;
+    temp.angulo=jogador.angulo;
     temp.shell.cx=jogador.hitbox.cx;
     temp.shell.cy=jogador.hitbox.cy;
     temp.start=glutGet(GLUT_ELAPSED_TIME);
@@ -362,11 +372,10 @@ bool teste(string arquivo)
     svg=arquivo;
     if(arquivo[0]=='/' && svg.find("home")==string::npos){ 
         svg="."+arquivo;
-    }
-    else if(arquivo[0]=='~'){
+    }else if(arquivo[0]=='~'){
         svg=string(getenv("HOME"))+arquivo.substr(1);
         svg=svg.substr(1);
-    } 
+    }
     FILE *i = fopen(svg.c_str(), "r");
     const char *c;
     svg=arquivo.substr(1);
@@ -374,7 +383,7 @@ bool teste(string arquivo)
     {
         i=fopen(svg.c_str(),"r");
         if(i==NULL){
-            cout << "FILE ";
+            cout << "FILE "<<svg;
             ErroIO();
             return false;
         }
@@ -474,9 +483,9 @@ bool teste(string arquivo)
             fclose(i);
             return false;
         }
-        if(circulo_temp.color=="blue"){
+        if(circulo_temp.color==blue){
             arena=circulo_temp;
-        }else if(circulo_temp.color=="green"){
+        }else if(circulo_temp.color==green){
             jogador.hitbox=circulo_temp;
             jogador.x0=circulo_temp.cx;
             jogador.y0=circulo_temp.cy;
@@ -485,7 +494,7 @@ bool teste(string arquivo)
             jogador.angulo_canhao=0;
             jogador.estado=0;
             jogador.enabled=true;
-        }else if(circulo_temp.color=="red"){
+        }else if(circulo_temp.color==red){
             nave_temp.hitbox=circulo_temp;
             nave_temp.angulo_o=graus2rad(double(rand()%361));
             nave_temp.angulo=nave_temp.angulo_o;
@@ -499,7 +508,7 @@ bool teste(string arquivo)
             nave_temp.estado=0;
             nave_temp.enabled=true;
             inimigos.push_back(nave_temp);
-        }else if(circulo_temp.color=="orange"){
+        }else if(circulo_temp.color==orange){
             nave_temp.hitbox=circulo_temp;
             nave_temp.angulo_o=graus2rad(double(rand()%360));
             nave_temp.x0=circulo_temp.cx;
@@ -536,12 +545,27 @@ void recarga_bomba(int param){
 }
 
 void recarga_inimiga(int param){
+    if(jogador.estado!=3){
+        return;
+    }
     for(auto i:inimigos){
         if(i.enabled){
             addTiroInimigo(&i);
         }
     }
-    glutTimerFunc(int(1000*freqTiro),recarga_inimiga,0);
+    glutTimerFunc(int(1000*freqTiro/multiplicador),recarga_inimiga,0);
+}
+
+void mov_inimigo(int param){
+    if(jogador.estado!=3 || !jogador.enabled){
+        return;
+    }
+    for(auto j=inimigos.begin();j<inimigos.end();++j){
+        if (j->enabled){
+            j->angulo=rand()%360;
+        }
+    }
+    glutTimerFunc(10*tock/multiplicador,mov_inimigo,0);
 }
 
 void teleport(Nave *a){
@@ -564,7 +588,7 @@ void tick(int antigo){
     bool morto=false;
     int atual=glutGet(GLUT_ELAPSED_TIME);
     double dif=ms2s(atual-antigo),inicio=ms2s(atual-start),temp;
-    if(jogador.enabled && jogador.estado){
+    if(jogador.enabled && jogador.estado && score_atual!=score_total){
         if(jogador.helice==360){
             jogador.helice=0;
         }else jogador.helice+=10;
@@ -572,8 +596,8 @@ void tick(int antigo){
         if(jogador.estado==3){
             temp=jogador.v*multiplicador*jogador.vel*dif+jogador.a*pow(dif,2)/2;
         }else temp=jogador.v*dif+jogador.a*pow(dif,2)/2;
-        jogador.hitbox.cx=jogador.hitbox.cx+temp*sin(jogador.angulo);
-        jogador.hitbox.cy=jogador.hitbox.cy+temp*cos(jogador.angulo);
+            jogador.hitbox.cx=jogador.hitbox.cx+temp*sin(jogador.angulo);
+            jogador.hitbox.cy=jogador.hitbox.cy+temp*cos(jogador.angulo);
         if(jogador.estado==1){
             if(inicio>2){
                 jogador.estado=2;
@@ -584,6 +608,8 @@ void tick(int antigo){
                 jogador.hitbox.raio=jogador.raio_o*(inicio/2);
             }else{
                 jogador.estado=3;
+                recarga_inimiga(0);
+                glutTimerFunc(10*tock/multiplicador,mov_inimigo,0);
                 jogador.v=jogador.a*4*jogador.vel;
                 jogador.a=0;
                 jogador.hitbox.raio=jogador.raio_o*2;
@@ -593,76 +619,86 @@ void tick(int antigo){
             teleport(&jogador);
         }
         if(jogador.estado==3){
-            for(auto i:inimigos){
-                temp=jogador.v*dif*multiplicador;
-                i.hitbox.cx+=temp*sin(i.angulo);
-                i.hitbox.cy+=temp*cos(i.angulo);
-                if(!inbound(&i)){
-                    teleport(&i);
-                }
-                if(contato(i.hitbox,jogador.hitbox)){
-                    morto=true;
+            for(auto i=inimigos.begin();i<inimigos.end();++i){
+                if(i->enabled){
+                    temp=jogador.v*dif*multiplicador;
+                    i->hitbox.cx+=temp*sin(i->angulo);
+                    i->hitbox.cy+=temp*cos(i->angulo);
+                    if(!inbound(&(*i))){
+                        teleport(&(*i));
+                    }
+                    if(contato(i->hitbox,jogador.hitbox)){
+                        morto=true;
+                    }
                 }
             }
         } 
-        for (auto i=tiros_inimigos.begin();i!=tiros_inimigos.end();++i){
+        for (auto i=tiros_inimigos.begin();i<tiros_inimigos.end();++i){
             temp=jogador.v*jogador.veltiro*dif*multiplicador;
             i->tiro.cx+=(temp*sin(i->angulo));
             i->tiro.cy+=(temp*cos(i->angulo));
             if(contato(i->tiro,jogador.hitbox)){
                 morto=true;
                 i=tiros_inimigos.erase(i);
-                i--;
-            }else if(!inbound(&(i->tiro))){
+            }else if(!inbound(&(*i))){
                 i=tiros_inimigos.erase(i);
-                i--;
             }
         }
         if(morto){
             jogador.enabled=false;
         }else{
-            for(auto i=tiros.begin();i!=tiros.end();++i){
-                temp=jogador.v*jogador.veltiro*dif*multiplicador;
-                i->tiro.cx+=(temp*sin(i->angulo));
-                i->tiro.cy+=(temp*cos(i->angulo));
-                if(!inbound(&(i->tiro))){
-                    i=tiros.erase(i);
-                }
-                for(auto j=inimigos.begin();j!=inimigos.end();++j){
-                    if(i==tiros.begin()){
+            if(jogador.estado==3){
+                for(auto j=inimigos.begin();j<inimigos.end();++j){
+                    if (j->enabled){
                         if(j->helice==360){
                             j->helice=0;
                         }else j->helice+=10;
                     }
-                    if(j->enabled && !inbound(&(*j))){
-                        teleport(&(*j));
-                    }
-                    if(j->enabled && contato(i->tiro,j->hitbox)){
-                        j->enabled=false;
-                        i=tiros.erase(i);
-                    }
                 }
-                
             }
-            for(auto i=bombas.begin();i!=bombas.end();++i){
+            for(auto i=tiros.begin();i<tiros.end();++i){
+                temp=jogador.v*jogador.veltiro*dif*multiplicador;
+                i->tiro.cx+=(temp*sin(i->angulo));
+                i->tiro.cy+=(temp*cos(i->angulo));
+                if(!inbound(i->tiro)){
+                    i=tiros.erase(i);
+                }else{
+                    for(auto j=inimigos.begin();j<inimigos.end();++j){
+                        if(j->enabled){
+                            if(!inbound(&(*j))){
+                                teleport(&(*j));
+                            }
+                            if(contato(i->tiro,j->hitbox)){
+                                j->enabled=false;
+                                i=tiros.erase(i);
+                            }
+                        }
+                    }
+                } 
+            }
+            for(auto i=bombas.begin();i<bombas.end();++i){
                 temp=jogador.v*dif*multiplicador;
                 i->shell.cy+=(temp*cos(i->angulo));
                 i->shell.cx+=(temp*sin(i->angulo));
-                if(!inbound(&(i->shell)) || ms2s(atual-i->start)>2){
+                if(!inbound(&(*i)) || ms2s(atual-i->start)>2 || !(i->shell.raio>0)){
                     i=bombas.erase(i);
                 }else{
                     i->shell.raio=(jogador.hitbox.raio/5)*(2-ms2s(atual-i->start))/2;
                 }
-                for(auto j=bases.begin();j!=bases.end();++j){
-                    if(j->enabled && !inbound(&(*j))){
-                        teleport(&(*j));
+                for(auto j=bases.begin();j<bases.end();++j){
+                    if(j->enabled){
+                        if(!inbound(&(*j))){
+                            teleport(&(*j));
+                        }
+                        if(contato(i->shell,j->hitbox) && ms2s(atual-i->start)>1){
+                            j->enabled=false;
+                            score_atual++;
+                            i=bombas.erase(i);
+                        }
                     }
-                    if(j->enabled && contato(i->shell,j->hitbox)){
-                        j->enabled=false;
-                        score_atual++;
-                        i=bombas.erase(i);
-                    }
+                    
                 }
+                
                 
             }
         }
@@ -701,7 +737,7 @@ void display(){
             drawCircle(i.tiro);
         }
     }
-    cor("black");
+    cor(black);
     glRasterPos2i(arena.cx-0.9*arena.raio,arena.cy+0.9*arena.raio);
     for(auto i:str){
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10,i);
@@ -710,14 +746,14 @@ void display(){
         drawNave(&jogador);
         if(score_atual==score_total){
             
-            pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,win)/2+arena.cx;
-            cor("green");
+            pos=-glutBitmapLength(GLUT_BITMAP_HELVETICA_18,win)/2+arena.cx;
+            cor(yellow);
             glRasterPos2i(pos,arena.cy);
             glutBitmapString(GLUT_BITMAP_HELVETICA_18,win);
         }
     }else{
-        pos=-glutStrokeLength(GLUT_BITMAP_HELVETICA_18,lose)/2+arena.cx;
-        cor("red");
+        pos=-glutBitmapLength(GLUT_BITMAP_HELVETICA_18,lose)/2+arena.cx;
+        cor(red);
         glRasterPos2i(pos,arena.cy);
         glutBitmapString(GLUT_BITMAP_HELVETICA_18,lose);
     }
@@ -739,13 +775,13 @@ void keyPress(unsigned char key, int x ,int y){
         tick(start);
         glutPostRedisplay();
     }
-    if(key=='d' && jogador.estado>2){
+    if(key=='d' && jogador.estado>2 && score_atual!=score_total){
         jogador.angulo-=0.1*M_PI;
         if(jogador.angulo<-M_PI){
             jogador.angulo+=2*M_PI;
         }
     }
-    if(key=='a' && jogador.estado>2){
+    if(key=='a' && jogador.estado>2 && score_atual!=score_total){
         jogador.angulo+=0.1*M_PI;
         if(jogador.angulo>M_PI){
             jogador.angulo-=2*M_PI;
@@ -805,6 +841,10 @@ int main(int argc, char *argv[])
         return 1;
     }
     string temp = string(argv[1]);
+    if(temp[temp.size()-1]!='/'){
+        temp.append("/");
+    }
+    
     temp.append("config.xml");
     if (!teste(temp))
     {
