@@ -14,6 +14,59 @@
 using namespace std;
 using namespace tinyxml2;
 
+/*
+PARAMETROS
+    base do trabalho 4
+    jogadores e inimigos sao naves verde e vermelhos
+    janela de 500x500 pix
+    x e y no svg
+    z da arena eh 8xdiametro FINAL do jogador = 32x raio INICIAL do jogador
+    z da base =z arena (meio circulo em cima meio em baixo)
+
+JOGADOR
+    em 3d com helice e tal
+    contido em uma esfera de raio no svg
+    ws sobem e descem
+    canhao move em 3d dependendo da posicao do mouse na tela (visto de cima: anti horario com mouse a esquerda, contrario a direita)
+    canhao rotaciona max 30 graus qualquer direcao
+    leftclick canhao atira
+INIMIGOS
+    nao tem colisao entre si
+    mov aleatorio
+    atirar as vezes
+TIROS
+    mov em 3d
+    podem ser bloqueados por objetos
+    resto igual
+BOMBA
+    igual mas em 3d
+APARENCIA
+    1>= luz direcional ou pontual
+    modo noturno toggle com "n" qua apaga todas as luzes exceto o farol(spot) na frente do aviao apontando para a frente dele
+    arena e jogador texturizados
+CAMERAS
+    1(default): no cockpit( bola preta) do aviao olhando para frente
+    2:em cima do canhao olhando na mesma direcao com up para o ceu, vendo parte do canhao
+    3:atras do jogador com distancia, acima do jogador olhado p o jogador, up para o ceu, 
+    deve rotacionar de +/-180 para os lados e +/-60 para cima quando rightclick em cima da arena 
+MINI MAPA
+    usar camera ortogonal para fazer mapa da arena com posicoes das entidades (verde jogador, vermelho inimigos, amarelo bases)
+    fundo deve ser transparente com arena representada apenas por linha
+    fixo no canto inferior direito
+    ocupa 1/4 da tela( 250x250 pix)
+BONUS 1
+    Implementar uma visão permanente da bomba. 
+    câmera perspectiva no centro da bomba (up na direção do movimento). 
+    janela com 200 a mais em y  constantemente (janela inicial de 500x500 será 500x700 ). DICA: É necessário dividir o viewport!
+    Enquanto a bomba não for lançada, essa parte da janela reservada para ele deverá mostrar preto. 
+    Quando for lançado a visão da câmera até que seja destruída, ou seja, até que ele atinja o chão.
+BONUS 2
+    Utilizar modelos avançados de jogador e suas partes (ver exemplos abaixo). O aluno está livre para
+utilizar modelos 3D e suas partes feitos no Blender ou baixados da internet. Não pode haver grupos com
+modelos repetidos. A qualidade dos modelos será julgada caso a caso. Atenção, modelos muito pesados
+podem deixar o jogo muito lento e isso não é desejável.
+*/
+
 ////////////STRUCTS////////////
 
 struct Linha{
@@ -24,7 +77,7 @@ struct Linha{
 struct Circulo
 {
     string color;
-    double cx,cy,raio;
+    double cx,cy,raio,cz,altura;
 
 }circulo_temp,arena ;
 
@@ -47,11 +100,13 @@ struct Bomba{
 
 struct Nave{
     Circulo hitbox;
-    double x0,y0;//posicao inicial
+    double x0,y0,z0;//posicao inicial
     int helice=0;
     int estado=0; // parado,pista,aumenta,voando,parado
-    double angulo;//radianos
-    double angulo_canhao;//radianos
+    double angulo;//radianos em xy
+    double phi;//rad em z
+    double angulo_canhao;//radianos em xy
+    double phi_canhao;//rad em z
     double angulo_o;//angulo original
     double raio_o;
     double vel;//multiplicador
@@ -101,6 +156,17 @@ double rad2pi(double a){ //de 0 a 2pi
         a+=2*M_PI;
     }
     return a;
+}
+
+double angulo3d(double v1[3],double v2[3]){
+    // angulo entre vetores v1 e v2 em 3d em rad
+    double v1mod,v2mod,v1n[3], v2n[3],dot;
+    v1mod=sqrt(v1[0]*v1[0]+v1[1]*v1[1]+v1[2]+v1[2]);
+    v2mod=sqrt(v2[0]*v2[0]+v2[1]*v2[1]+v2[2]+v2[2]);
+    v1n[0]=v1[0]/v1mod;v1n[1]=v1[1]/v1mod;v1n[2]=v1[2]/v1mod;
+    v2n[0]=v2[0]/v2mod;v2n[1]=v2[1]/v2mod;v2n[2]=v2[2]/v2mod;
+    dot=v1n[0]*v2n[0]+v1n[1]*v2n[1]+v1n[2]*v2n[2];
+    return acos(dot);
 }
 
 
@@ -174,13 +240,20 @@ bool inbound(Bomba *a){
 bool contato(Circulo a, Circulo b){
     return distancia(a.cx,a.cy,b.cx,b.cy)<=double(a.raio+b.raio);
 }
+
+void switch_camera(int modo){
+    //double angulo3d(double v1[3],double v2[3]) rad
+}
 ////////////draw functions////////////
 void init(){
     glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_PROJECTION);
     glMatrixMode(GL_MODELVIEW);
+    //gluPerspective()
+    //gluLookAt(arena.cx,arena.cy,1,arena.cx,arena.cy,0,0,0,1);
     gluOrtho2D(arena.cx-arena.raio, arena.cx+arena.raio,arena.cy+arena.raio, arena.cy-arena.raio); //-y
+
 }
 
 void reset_nave(Nave *nave){
