@@ -221,9 +221,9 @@ vector<Municao> tiros_inimigos;
 vector<Bomba> bombas;
 XMLDocument doc;
 XMLElement *temp = NULL; //nodo  para manipular
-int segmentos = 50;
+int segmentos = 30;
 double multiplicador = 1, freqTiro;
-const int tock = 50, delay_tiro = 400;
+const int tock = 100, delay_tiro = 400;
 int start, launch, score_total, score_atual = 0, a_tiro = 0;
 bool tiro_pronto[2];
 const unsigned char lose[] = "LOSE", win[] = "WIN";
@@ -337,6 +337,7 @@ void switch_camera(int modo)
 ////////////draw functions////////////
 void init()
 {
+    arena.altura=32*jogador.raio_o;
     glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearDepth(1.0);
@@ -348,9 +349,8 @@ void init()
     glutCreateWindow("trabalhocg");
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    //glOrtho(arena.cx-arena.raio,arena.cx+arena.raio,arena.cy+arena.raio,arena.cy-arena.raio,arena.altura+1,-1);
-    gluPerspective(45,view_w_px/view_h_px,0.1,100);
-    gluLookAt(arena.cx,arena.cy,arena.altura+arena.cz,arena.cx,arena.cy,arena.cz,1,0,0);
+    gluPerspective(90,view_w_px/view_h_px,0,arena.altura);
+    switch_camera(1);
 }
 
 void reset_nave(Nave *nave)
@@ -409,28 +409,26 @@ void drawCircle2D(Esfera circ)
 
 void drawCilindro(Esfera circ) 
 {
-    glTranslated(circ.cx-arena.cx,circ.cy-arena.cy,circ.cz-arena.cz);
+    glTranslated(arena.cx,arena.cy,arena.cz);
     cor(arena.color);
-    GLUquadricObj *quadratic=gluNewQuadric();
+    GLUquadricObj *quadratic=gluNewQuadric(),*q2=gluNewQuadric(),*q3=gluNewQuadric();
     gluCylinder(quadratic,arena.raio,arena.raio,arena.altura,segmentos,segmentos);
-    glTranslated(-circ.cx+arena.cx,-circ.cy+arena.cy,-circ.cz+arena.cz);
+    glTranslated(0,0,-0.01);
+    gluDisk(q2,0,arena.raio,segmentos,1);
+    glTranslated(0,0,0.01);
+    glTranslated(0,0,arena.altura);
+    gluDisk(q2,0,arena.raio,segmentos,1);
+    glTranslated(0,0,-arena.altura);
+    glTranslated(-arena.cx,-arena.cy,-arena.cz);
+    
 }
 
 void drawEsfera(Esfera circ)
 {
-    double step = 2 * M_PI / segmentos, ox, oy, oz;
+    GLUquadricObj *obj=gluNewQuadric();
     cor(circ.color);
-    glBegin(GL_POLYGON);
-    {
-        for (double i = 2 * M_PI;i >= 0; i -= step)
-        {
-            ox = double(circ.raio * cos(i)) + circ.cx;
-            oy = double(circ.raio * sin(i)) + circ.cy;
-            oz = double(circ.raio * sin(i)) + circ.cz;
-            glVertex3d(ox, oy, oz);
-        }
-    }
-    glEnd();
+    glTranslated(circ.cx,circ.cy,circ.cz);
+    gluSphere(obj,circ.raio,segmentos,segmentos);
 }
 
 void drawLine2D(Linha3D l)
@@ -616,99 +614,38 @@ void drawNave2D(Nave *nave)
 
 void drawNave(Nave *nave){
     string color=nave->hitbox.color;
-    double angx,angy;
-    glPushMatrix();
-    //mover origem para nave e rotacionar
+    GLUquadric *asa_e,*asa_d,*cabine=gluNewQuadric(),*corpo=gluNewQuadric(),*helice_e,*helice_d;
     glTranslated(nave->hitbox.cx,nave->hitbox.cy,nave->hitbox.cz);
-    glRotated(-rad2graus(nave->angulo),0,0,1);
-    glRotated(-rad2graus(nave->phi),0,1,0);
-    //nave
-    glScaled(1/0.33,1,1/0.33);
-    glTranslated(-nave->hitbox.cx,-nave->hitbox.cy,-nave->hitbox.cz);
-    drawEsfera(nave->hitbox);
-    glTranslated(nave->hitbox.cx,nave->hitbox.cy,nave->hitbox.cz);
-    //cabine
-    nave->hitbox.color=black;
-    glTranslated(0,nave->hitbox.raio*0.4,nave->hitbox.raio*0.4);
-    glScaled(0.4,0.4,0.4);
-    glTranslated(-nave->hitbox.cx,-nave->hitbox.cy,-nave->hitbox.cz);
-    drawEsfera(nave->hitbox);
-    glTranslated(nave->hitbox.cx,nave->hitbox.cy,nave->hitbox.cz);
-    glScaled(1/0.4,1/0.4,1/0.4);
-    glTranslated(0,-nave->hitbox.raio*0.4,-nave->hitbox.raio*0.4);
-    glScaled(0.33,1,0.33);
-    glScaled(0.33,1,0.33);
-    //
-    glBegin(GL_POLYGON);
-    { //asa esquerda
-        glVertex3d(-nave->hitbox.raio, -nave->hitbox.raio / 3,0);
-        glVertex3d(-nave->hitbox.raio, +nave->hitbox.raio / 3,0);
-        glVertex3d(-3 * nave->hitbox.raio, 0,0);
-        glVertex3d(-3 * nave->hitbox.raio, -2 * nave->hitbox.raio / 3,0);
-    }
-    glEnd();
-    glBegin(GL_POLYGON);
-    { //asa direita
-        glVertex3d(+nave->hitbox.raio, -nave->hitbox.raio / 3,0);
-        glVertex3d(+nave->hitbox.raio, +nave->hitbox.raio / 3,0);
-        glVertex3d(+3 * nave->hitbox.raio, 0,0);
-        glVertex3d(+3 * nave->hitbox.raio, -2 * nave->hitbox.raio / 3,0);
-    }
-    glEnd();
-    glBegin(GL_POLYGON);
-    { //cauda
-        glVertex3d(+nave->hitbox.raio / 5, -nave->hitbox.raio,0);
-        glVertex3d(-nave->hitbox.raio / 5, -nave->hitbox.raio,0);
-        glVertex3d(-nave->hitbox.raio / 5, -nave->hitbox.raio / 6,0);
-        glVertex3d(+nave->hitbox.raio / 5, -nave->hitbox.raio / 6,0);
-    }
-    glEnd();
-    cor(yellow);
-    angx = nave->hitbox.raio * 0.5 * sqrt(2) / 2;
-    angy = angx;
-    glTranslated(2 * nave->hitbox.raio,0, 0);
-    glRotated(nave->helice, 0, 0, 1);
-    glBegin(GL_POLYGON);
-    {
-        glVertex3d(0,0,0);
-        glVertex3d(angx, angy,0);
-        glVertex3d(angx, -angy,0);
-        glVertex3d(-angx, angy,0);
-        glVertex3d(-angx, -angy,0);
-    }
-    glEnd();
-    glRotated(-nave->helice, 0, 0, 1);
-    glTranslated(-4 * nave->hitbox.raio,0, 0);
-    glRotated(nave->helice, 0, 0, 1);
-    glBegin(GL_POLYGON);
-    {
-        glVertex3d(0, 0,0);
-        glVertex3d(angx, angy,0);
-        glVertex3d(angx, -angy,0);
-        glVertex3d(-angx, angy,0);
-        glVertex3d(-angx, -angy,0);
-    }
-    glEnd();
-    glRotated(-nave->helice, 0, 0, 1);
-    glTranslated(-2 * nave->hitbox.raio,0, 0);
-    //canhao consertar
-    cor(red);
-    glTranslated(0, nave->hitbox.raio, 0);
-    glRotated(-rad2graus(nave->angulo_canhao), 0, 0, 1);
-    glBegin(GL_POLYGON);
-    {
-        glVertex3d(+nave->hitbox.raio / 5, -nave->hitbox.raio / 2,0);
-        glVertex3d(-nave->hitbox.raio / 5, -nave->hitbox.raio / 2,0);
-        glVertex3d(-nave->hitbox.raio / 5, nave->hitbox.raio / 2,0);
-        glVertex3d(+nave->hitbox.raio / 5, nave->hitbox.raio / 2,0);
-    }
-    glEnd();
-    glRotated(rad2graus(nave->angulo_canhao), 0, 0, 1);
-    glTranslated(0, -nave->hitbox.raio, 0);
-    //desfazer transf
-    glScaled(1/0.33,1,1/0.33);
-    glRotated(rad2graus(nave->phi),0,1,0);
     glRotated(rad2graus(nave->angulo),0,0,1);
+    glRotated(rad2graus(nave->phi),0,1,0);
+    glScaled(1/3,1,1/3);
+    //begin
+    cor(nave->hitbox.color);
+    gluSphere(corpo,nave->hitbox.raio,segmentos,segmentos);
+    glTranslated(0,nave->hitbox.raio/2,0);
+    cor(black);
+    gluSphere(cabine,nave->hitbox.raio/4,segmentos,segmentos);
+    glTranslated(0,-nave->hitbox.raio/2,0);
+    glTranslated(nave->hitbox.raio,0,0);
+    glBegin(GL_POLYGON);{
+        glVertex3d(2*nave->hitbox.raio,0,0.1*nave->hitbox.raio);
+        glVertex3d(0,nave->hitbox.raio/2,0);
+        glVertex3d(0,-nave->hitbox.raio/2,0);
+    }
+    glEnd();
+    glTranslated(-2*nave->hitbox.raio,0,0);
+    glBegin(GL_POLYGON);{
+        glVertex3d(-2*nave->hitbox.raio,0,0.1*nave->hitbox.raio);
+        glVertex3d(0,nave->hitbox.raio/2,0);
+        glVertex3d(0,-nave->hitbox.raio/2,0);
+    }
+    glEnd();
+    glTranslated(nave->hitbox.raio,0,0);
+
+    //end
+    glScaled(3,1,3);
+    glRotated(rad2graus(-nave->phi),0,1,0);
+    glRotated(rad2graus(-nave->angulo),0,0,1);
     glTranslated(-nave->hitbox.cx,-nave->hitbox.cy,-nave->hitbox.cz);
     nave->hitbox.color=color;
     glPopMatrix();
@@ -1204,8 +1141,9 @@ void display()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    //switch_camera(1);
     drawCilindro(arena);
-    /*
+    //drawEsfera(jogador.hitbox);
     for (auto i : bases)
     {
         if (i.enabled)
@@ -1218,7 +1156,7 @@ void display()
     {
         if (i.enabled)
         {
-            drawNave(&i);
+            drawEsfera(i.hitbox);
         }
     }
     if (jogador.enabled)
@@ -1261,7 +1199,6 @@ void display()
         glRasterPos2i(pos, arena.cy);
         glutBitmapString(GLUT_BITMAP_HELVETICA_18, lose);
     }
-    */
     glFlush();
     glutSwapBuffers();
 }
