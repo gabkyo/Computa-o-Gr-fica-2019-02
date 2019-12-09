@@ -156,7 +156,7 @@ double dist_linha()
 
 double radianos(double x1, double x2, double y1, double y2)
 { //referencia em XY
-    return atan2(x2 - x1, y2 - y1);
+    return atan2(x1-x2,y2-y1);
 }
 
 double rad_linha2D()
@@ -224,7 +224,7 @@ XMLElement *temp = NULL; //nodo  para manipular
 int segmentos = 30;
 double multiplicador = 1, freqTiro;
 const int tock = 100, delay_tiro = 400;
-int start, launch, score_total, score_atual = 0, a_tiro = 0;
+int start, launch, score_total, score_atual = 0, a_tiro = 0,camera=1;
 bool tiro_pronto[2];
 const unsigned char lose[] = "LOSE", win[] = "WIN";
 const string black = "black", red = "red", yellow = "yellow", green = "green", blue = "blue", orange = "orange";
@@ -309,7 +309,7 @@ bool contato(Esfera a, Esfera b)
     return distancia(a, b) <= (a.raio + b.raio);
 }
 
-void switch_camera(int modo)
+void switch_camera()
 {
     double angle;
     //double angulo3d(double v1[3],double v2[3]) rad
@@ -320,14 +320,15 @@ void switch_camera(int modo)
     3:atras do jogador com distancia, acima do jogador olhado p o jogador, up para o ceu, 
     deve rotacionar de +/-180 para os lados e +/-60 para cima quando rightclick em cima da arena 
     */
-    double tx,ty,tz;
-    switch (modo)
+    double sinxy,cosxy,sinphi,cosphi;
+    switch (camera)
     {
     case 1:
-        tx = jogador.hitbox.raio * sin(jogador.angulo);
-        ty = jogador.hitbox.raio * cos(jogador.angulo);
-        tz = jogador.hitbox.raio * sin(jogador.phi);
-        gluLookAt(jogador.hitbox.cx + tx * 0.5, jogador.hitbox.cy + ty * 0.5, jogador.hitbox.cz + tz * 0.5, jogador.hitbox.cx + tx, jogador.hitbox.cy + ty, jogador.hitbox.cz + tz, 0, 0, cos(jogador.phi));
+        sinxy=sin(jogador.angulo)*jogador.hitbox.raio;
+        cosxy=cos(jogador.angulo)*jogador.hitbox.raio;
+        sinphi=sin(jogador.phi)*jogador.hitbox.raio;
+        cosphi=cos(jogador.phi)*jogador.hitbox.raio;
+        gluLookAt(jogador.hitbox.cx+cosxy*sinphi,jogador.hitbox.cy+sinxy*sinphi,jogador.hitbox.cz+cosphi,jogador.hitbox.cx-sinxy*cosphi,jogador.hitbox.cy-cosxy*cosphi,jogador.hitbox.cz+sinphi,cosxy*sinphi/jogador.hitbox.raio,sinxy*sinphi/jogador.hitbox.raio,cosphi/jogador.hitbox.raio);
         break;
 
     default:
@@ -350,7 +351,7 @@ void init()
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(90,view_w_px/view_h_px,0,arena.altura);
-    switch_camera(1);
+    switch_camera();
 }
 
 void reset_nave(Nave *nave)
@@ -429,6 +430,7 @@ void drawEsfera(Esfera circ)
     cor(circ.color);
     glTranslated(circ.cx,circ.cy,circ.cz);
     gluSphere(obj,circ.raio,segmentos,segmentos);
+    glTranslated(-circ.cx,-circ.cy,-circ.cz);
 }
 
 void drawLine2D(Linha3D l)
@@ -469,6 +471,7 @@ void drawRetangle2D(Paralelepipedo r)
 void drawParalelepipedo(Paralelepipedo r)
 {
     cor(r.color);
+    glTranslated(r.cx,r.cy,r.cz);
     glBegin(GL_POLYGON); //xy-z
     {
         glVertex3d(r.cx - r.largura / 2, r.cy + r.comprimento / 2, r.cz - r.altura/2);
@@ -517,6 +520,7 @@ void drawParalelepipedo(Paralelepipedo r)
         glVertex3d(r.cx + r.largura / 2, r.cy + r.comprimento / 2, r.cz + r.altura/2);
     }
     glEnd();
+    glTranslated(-r.cx,-r.cy,-r.cz);
     
 }
 
@@ -615,15 +619,16 @@ void drawNave2D(Nave *nave)
 void drawNave(Nave *nave){
     string color=nave->hitbox.color;
     GLUquadric *asa_e,*asa_d,*cabine=gluNewQuadric(),*corpo=gluNewQuadric(),*helice_e,*helice_d;
+    glPushMatrix();
     glTranslated(nave->hitbox.cx,nave->hitbox.cy,nave->hitbox.cz);
     glRotated(rad2graus(nave->angulo),0,0,1);
     glRotated(rad2graus(nave->phi),0,1,0);
-    glScaled(1/3,1,1/3);
+    glScaled(0.33,1,0.33);
     //begin
     cor(nave->hitbox.color);
     gluSphere(corpo,nave->hitbox.raio,segmentos,segmentos);
-    glTranslated(0,nave->hitbox.raio/2,0);
     cor(black);
+    glTranslated(0,nave->hitbox.raio/2,0);
     gluSphere(cabine,nave->hitbox.raio/4,segmentos,segmentos);
     glTranslated(0,-nave->hitbox.raio/2,0);
     glTranslated(nave->hitbox.raio,0,0);
@@ -641,7 +646,7 @@ void drawNave(Nave *nave){
     }
     glEnd();
     glTranslated(nave->hitbox.raio,0,0);
-
+    
     //end
     glScaled(3,1,3);
     glRotated(rad2graus(-nave->phi),0,1,0);
@@ -981,10 +986,11 @@ void tick(int antigo)
         {
             temp = jogador.v * multiplicador * jogador.vel * dif + jogador.a * pow(dif, 2) / 2;
         }
-        else
-            temp = jogador.v * dif + jogador.a * pow(dif, 2) / 2;
-        jogador.hitbox.cx = jogador.hitbox.cx + temp * sin(jogador.angulo);
-        jogador.hitbox.cy = jogador.hitbox.cy + temp * cos(jogador.angulo);
+        else temp = jogador.v * dif + jogador.a * pow(dif, 2) / 2;
+        temp=temp*1000;
+        jogador.hitbox.cx +=double(temp * (sin(jogador.angulo)+cos(jogador.phi)));
+        jogador.hitbox.cy +=double(temp * cos(jogador.angulo));
+        jogador.hitbox.cz +=double(temp*sin(jogador.phi));
         if (jogador.estado == 1)
         {
             if (inicio > 2)
@@ -1143,7 +1149,7 @@ void display()
     glLoadIdentity();
     //switch_camera(1);
     drawCilindro(arena);
-    //drawEsfera(jogador.hitbox);
+    drawNave(&jogador);
     for (auto i : bases)
     {
         if (i.enabled)
@@ -1156,7 +1162,7 @@ void display()
     {
         if (i.enabled)
         {
-            drawEsfera(i.hitbox);
+            drawNave(&i);
         }
     }
     if (jogador.enabled)
@@ -1237,6 +1243,22 @@ void keyPress(unsigned char key, int x, int y)
             jogador.angulo -= 2 * M_PI;
         }
     }
+    if (key == 's' && jogador.estado > 2 && score_atual != score_total)
+    {
+        jogador.phi -= 0.1 * M_PI;
+        if (jogador.phi < -M_PI)
+        {
+            jogador.phi += 2 * M_PI;
+        }
+    }
+    if (key == 'w' && jogador.estado > 2 && score_atual != score_total)
+    {
+        jogador.phi += 0.1 * M_PI;
+        if (jogador.phi > M_PI)
+        {
+            jogador.phi -= 2 * M_PI;
+        }
+    }
     if (key == '+' && jogador.estado > 2)
     {
         multiplicador += 0.2;
@@ -1293,8 +1315,9 @@ void mouse(int button, int state, int x, int y)
 
 void tracking(int x, int y)
 {
-    double t = x - arena.raio;
-    jogador.angulo_canhao = (t / arena.raio) * (M_PI / 4);
+    double tx = x - arena.raio,ty=y-arena.raio;
+    jogador.angulo_canhao = (tx / arena.raio) * (M_PI / 4);
+    jogador.phi_canhao = (ty / arena.raio) * (M_PI / 8);
     glutPostRedisplay();
 }
 ////////////MAIN////////////
